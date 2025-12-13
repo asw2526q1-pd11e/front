@@ -193,3 +193,18 @@ export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
   }
   return res.json();
 }
+
+// -------------------- USER COMMENTS --------------------
+
+export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      return []; // Usuario sin comentarios
+    }
+    throw new Error("Failed to fetch user comments");
+  }
+  return res.json();
+}
