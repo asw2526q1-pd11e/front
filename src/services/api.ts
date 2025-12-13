@@ -15,7 +15,8 @@ export interface Post {
   votes: number;
   url: string;
   image?: string | null;
-  communities?: { id: number; name: string }[];
+  communities?: string[];
+  is_saved?: boolean;
 }
 
 export interface Comment {
@@ -175,5 +176,20 @@ export async function updateUserProfile(
   });
 
   if (!res.ok) throw new Error("Failed to update user profile");
+  return res.json();
+}
+
+// -------------------- USER POSTS --------------------
+
+export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/posts/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      return []; // Usuario sin posts
+    }
+    throw new Error("Failed to fetch user posts");
+  }
   return res.json();
 }
