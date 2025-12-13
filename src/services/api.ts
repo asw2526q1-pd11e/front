@@ -136,3 +136,44 @@ export async function fetchUserProfile(apiKey: string): Promise<UserProfile> {
   if (!res.ok) throw new Error("Failed to fetch user profile");
   return res.json();
 }
+
+// -------------------- UPDATE USER PROFILE --------------------
+export async function updateUserProfile(
+    apiKey: string,
+    data: {
+      nombre?: string;
+      bio?: string;
+      avatar?: File | null;
+      banner?: File | null;
+    }
+): Promise<UserProfile> {
+  const formData = new FormData();
+
+  if (data.nombre !== undefined) {
+    formData.append('nombre', data.nombre);
+  }
+
+  if (data.bio !== undefined) {
+    formData.append('bio', data.bio);
+  }
+
+  if (data.avatar instanceof File) {
+    formData.append('avatar', data.avatar);
+  }
+
+  if (data.banner instanceof File) {
+    formData.append('banner', data.banner);
+  }
+
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/`, {
+    method: 'PUT', // Canviado a PUT como indica el backend
+    headers: {
+      'X-API-Key': apiKey
+      // NO incluimos Content-Type, el navegador lo añade automáticamente con el boundary
+    },
+    body: formData
+  });
+
+  if (!res.ok) throw new Error("Failed to update user profile");
+  return res.json();
+}
