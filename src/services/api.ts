@@ -208,3 +208,61 @@ export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
   }
   return res.json();
 }
+
+// -------------------- SAVED POSTS --------------------
+
+export async function toggleSavePost(apiKey: string, postId: number): Promise<{ saved: boolean }> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/api/posts/${postId}/toggle_saved/`, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) throw new Error("Failed to toggle save post");
+  return res.json();
+}
+
+export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/saved-posts/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch saved posts");
+  }
+  return res.json();
+}
+
+// -------------------- SAVED COMMENTS --------------------
+
+export async function toggleSaveComment(apiKey: string, commentId: number): Promise<{ saved: boolean }> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/api/comments/${commentId}/toggle_saved/`, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) throw new Error("Failed to toggle save comment");
+  return res.json();
+}
+
+export async function fetchSavedComments(apiKey: string): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/saved-comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch saved comments");
+  }
+  return res.json();
+}
+
+// -------------------- SUBSCRIBED COMMUNITIES --------------------
+
+export async function fetchSubscribedCommunities(apiKey: string): Promise<Community[]> {
+  const res = await fetch(`${COMMUNITIES_API_URL}/communities/?filter=subscribed`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) throw new Error("Failed to fetch subscribed communities");
+  return res.json();
+}
