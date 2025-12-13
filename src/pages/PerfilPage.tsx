@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchUserProfile, type UserProfile } from '../services/api';
+import EditProfileModal from '../components/EditPerfilPage';
 
 const PerfilPage = () => {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (user?.apiKey) {
@@ -22,6 +24,10 @@ const PerfilPage = () => {
         .finally(() => setLoading(false));
     }
   }, [user]);
+
+  const handleProfileUpdate = (updatedProfile: UserProfile) => {
+    setProfile(updatedProfile);
+  };
 
   if (loading) {
     return (
@@ -88,7 +94,10 @@ const PerfilPage = () => {
             </div>
 
             {/* Botó d'editar */}
-            <button className="bg-roseTheme-dark text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-roseTheme transition shadow-md hover:shadow-lg">
+            <button
+                onClick={() => setShowEditModal(true)}
+                className="bg-roseTheme-dark text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-roseTheme transition shadow-md hover:shadow-lg"
+            >
               ✏️ Editar perfil
             </button>
           </div>
@@ -164,6 +173,14 @@ const PerfilPage = () => {
           </div>
         </div>
       </div>
+      {showEditModal && profile && user?.apiKey && (
+          <EditProfileModal
+              profile={profile}
+              apiKey={user.apiKey}
+              onClose={() => setShowEditModal(false)}
+              onSave={handleProfileUpdate}
+          />
+      )}
     </div>
   );
 };
