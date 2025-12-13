@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchUserProfile, type UserProfile } from '../services/api';
+import { fetchUserProfile, fetchUserPosts, type UserProfile, type Post } from '../services/api';
 import EditProfileModal from '../components/EditPerfilPage';
 
 const PerfilPage = () => {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showMyPosts, setShowMyPosts] = useState(false);
 
   useEffect(() => {
     if (user?.apiKey) {
@@ -29,6 +32,48 @@ const PerfilPage = () => {
     setProfile(updatedProfile);
   };
 
+  const loadUserPosts = async () => {
+    if (!user?.apiKey) return;
+
+    setLoadingPosts(true);
+    try {
+      const posts = await fetchUserPosts(user.apiKey);
+      setUserPosts(posts);
+    } catch (err) {
+      console.error('Error carregant posts:', err);
+      setUserPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showMyPosts && user?.apiKey) {
+      loadUserPosts();
+    }
+  }, [showMyPosts, user?.apiKey]);
+
+  const handleShowMyPosts = () => {
+    setShowMyPosts(!showMyPosts);
+  };
+
+  useEffect(() => {
+    if (user?.apiKey) {
+      loadUserPosts(); // Cargar posts automáticamente
+    }
+  }, [user]);
+
+  const toggleSavePost = (postId: number) => {
+    setUserPosts(prevPosts =>
+        prevPosts.map(post =>
+            post.id === postId
+                ? { ...post, is_saved: !post.is_saved }
+                : post
+        )
+    );
+    console.log('Toggle save post:', postId);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -46,8 +91,8 @@ const PerfilPage = () => {
         <div className="bg-red-50 border-2 border-red-300 text-red-800 px-6 py-5 rounded-xl max-w-md w-full shadow-lg">
           <h2 className="font-bold text-xl mb-3">❌ Error</h2>
           <p className="mb-3">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-semibold transition"
           >
             🔄 Recarregar
@@ -69,19 +114,19 @@ const PerfilPage = () => {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-roseTheme-light">
         {/* Banner */}
-        <div 
+        <div
           className="h-48 bg-gradient-to-r from-roseTheme-light via-roseTheme-accent to-roseTheme"
           style={profile.banner ? { backgroundImage: `url(${profile.banner})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
         />
-        
+
         <div className="px-8 pb-8">
           {/* Avatar i accions */}
           <div className="flex items-end justify-between -mt-20 mb-6">
             {/* Avatar */}
             <div className="relative">
               {profile.avatar ? (
-                <img 
-                  src={profile.avatar} 
+                <img
+                  src={profile.avatar}
                   alt={profile.username}
                   className="w-40 h-40 rounded-full border-4 border-white shadow-2xl object-cover"
                 />
@@ -127,7 +172,7 @@ const PerfilPage = () => {
                     {profile.api_key}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     navigator.clipboard.writeText(profile.api_key);
                     alert('API Key copiada!');
@@ -143,7 +188,7 @@ const PerfilPage = () => {
           {/* Estadístiques */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center p-5 bg-gradient-to-br from-roseTheme-soft to-roseTheme-light rounded-xl border border-roseTheme-light shadow-sm">
-              <p className="text-3xl font-bold text-roseTheme-dark">24</p>
+              <p className="text-3xl font-bold text-roseTheme-dark">{userPosts.length}</p>
               <p className="text-sm text-roseTheme-dark/60 font-medium">Posts</p>
             </div>
             <div className="text-center p-5 bg-gradient-to-br from-roseTheme-soft to-roseTheme-light rounded-xl border border-roseTheme-light shadow-sm">
@@ -158,13 +203,20 @@ const PerfilPage = () => {
 
           {/* Accions */}
           <div className="flex gap-3">
-            <button className="flex-1 bg-roseTheme-light text-roseTheme-dark font-semibold py-3 rounded-xl hover:bg-roseTheme-accent transition border border-roseTheme-accent">
+            <button
+                onClick={handleShowMyPosts}
+                className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                    showMyPosts
+                        ? 'bg-roseTheme-dark text-white border-roseTheme-dark'
+                        : 'bg-roseTheme-light text-roseTheme-dark border-roseTheme-accent hover:bg-roseTheme-accent'
+                }`}
+            >
               📝 Els meus posts
             </button>
             <button className="flex-1 bg-roseTheme-light text-roseTheme-dark font-semibold py-3 rounded-xl hover:bg-roseTheme-accent transition border border-roseTheme-accent">
               ⭐ Posts guardats
             </button>
-            <button 
+            <button
               onClick={logout}
               className="flex-1 bg-red-50 text-red-600 font-semibold py-3 rounded-xl hover:bg-red-100 transition border border-red-200"
             >
@@ -180,6 +232,103 @@ const PerfilPage = () => {
               onClose={() => setShowEditModal(false)}
               onSave={handleProfileUpdate}
           />
+      )}
+      {showMyPosts && (
+          <div className="mt-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light p-6">
+              <h2 className="text-2xl font-bold text-roseTheme-dark mb-4 flex items-center gap-2">
+                📝 Els meus posts
+                {loadingPosts && (
+                    <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                )}
+              </h2>
+
+              {loadingPosts ? (
+                  <div className="flex justify-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 border-4 border-roseTheme-light border-t-roseTheme-dark rounded-full animate-spin"></div>
+                      <p className="text-roseTheme-dark">Carregant posts...</p>
+                    </div>
+                  </div>
+              ) : userPosts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">📭</div>
+                    <p className="text-roseTheme-dark/60 text-lg mb-2">Encara no has publicat res</p>
+                    <p className="text-roseTheme-dark/40 text-sm">Els teus posts apareixeran aquí</p>
+                  </div>
+              ) : (
+                  <div className="space-y-4">
+                    {userPosts.map((post) => (
+                        <div
+                            key={post.id}
+                            className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
+                        >
+                          <div className="flex items-start gap-4">
+                            {post.image && (
+                                <img
+                                    src={post.image}
+                                    alt={post.title}
+                                    className="w-24 h-24 object-cover rounded-lg"
+                                />
+                            )}
+                            <div className="flex-1">
+                              {/* Títol i comunitat */}
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <h3 className="font-bold text-lg text-roseTheme-dark flex-1">
+                                  {post.title}
+                                </h3>
+                                {post.communities && post.communities.length > 0 && (
+                                    <span className="bg-roseTheme-light text-roseTheme-dark px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+                              📁 {post.communities[0]}
+                            </span>
+                                )}
+                              </div>
+
+                              <p className="text-roseTheme-dark/70 text-sm mb-2 line-clamp-2">
+                                {post.content}
+                              </p>
+
+                              {/* Data i estrella */}
+                              <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
+                                <span>❤️ {post.votes} likes</span>
+                                <span>📅 {new Date(post.published_date).toLocaleDateString('ca-ES')}</span>
+                                <button
+                                    onClick={() => toggleSavePost(post.id)}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      padding: '0',
+                                      boxShadow: 'none',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="hover:scale-110 transition-transform"
+                                    title={post.is_saved ? "Desguardar" : "Guardar"}
+                                >
+                                  {post.is_saved ? (
+                                      <span className="text-lg">🌟</span>
+                                  ) : (
+                                      <span className="text-lg text-gray-400 hover:text-yellow-400 transition-colors">⭐</span>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          {post.url && post.url !== `/blog/posts/${post.id}/` && (
+                              <a
+                                  href={post.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-roseTheme-dark hover:underline text-sm mt-2 block"
+                              >
+                                🔗 Veure més
+                              </a>
+                          )}
+                        </div>
+                    ))}
+                  </div>
+              )}
+            </div>
+          </div>
       )}
     </div>
   );
