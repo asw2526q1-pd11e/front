@@ -30,14 +30,17 @@ export interface Comment {
   url?: string;
   image?: string | null;
   replies?: Comment[];
+  is_saved?: boolean;
 }
 
 export interface Community {
   id: number;
   name: string;
-  description: string;
-  subscribers?: number;
-  created_date?: string;
+  avatar: string | null;
+  banner: string | null;
+  subs_count: number;
+  posts_count: number;
+  comments_count: number;
 }
 
 export interface UserProfile {
@@ -56,11 +59,11 @@ function getAuthHeaders(apiKey?: string): HeadersInit {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  
+
   if (apiKey) {
-    headers['X-API-Key'] = apiKey; // Canviat de Authorization a X-API-Key
+    headers['X-API-Key'] = apiKey;
   }
-  
+
   return headers;
 }
 
@@ -82,6 +85,49 @@ export async function fetchPostDetail(id: number, apiKey?: string): Promise<Post
   return res.json();
 }
 
+export async function createPost(
+    apiKey: string,
+    data: {
+      title: string;
+      content: string;
+      url?: string;
+      image?: File | null;
+      communities: string[];
+    }
+): Promise<Post> {
+  const formData = new FormData();
+
+  formData.append('title', data.title);
+  formData.append('content', data.content);
+
+  if (data.url) {
+    formData.append('url', data.url);
+  }
+
+  if (data.image) {
+    formData.append('image', data.image);
+  }
+
+  data.communities.forEach(community => {
+    formData.append('communities', community);
+  });
+
+  const res = await fetch(`${API_URL}/posts/create/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Error creant el post');
+  }
+
+  return res.json();
+}
+
 // -------------------- COMMENTS --------------------
 
 export async function fetchPostComments(postId: number, apiKey?: string): Promise<Comment[]> {
@@ -97,16 +143,6 @@ export async function fetchPostCommentsTree(postId: number, apiKey?: string): Pr
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch comments tree");
-  return res.json();
-}
-
-// -------------------- COMMUNITIES --------------------
-
-export async function fetchCommunities(apiKey?: string): Promise<Community[]> {
-  const res = await fetch(`${COMMUNITIES_API_URL}/communities/`, {
-    headers: getAuthHeaders(apiKey)
-  });
-  if (!res.ok) throw new Error("Failed to fetch communities");
   return res.json();
 }
 
@@ -167,10 +203,9 @@ export async function updateUserProfile(
   }
 
   const res = await fetch(`${ACCOUNTS_API_URL}/users/me/`, {
-    method: 'PUT', // Canviado a PUT como indica el backend
+    method: 'PUT',
     headers: {
       'X-API-Key': apiKey
-      // NO incluimos Content-Type, el navegador lo añade automáticamente con el boundary
     },
     body: formData
   });
@@ -187,7 +222,7 @@ export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
   });
   if (!res.ok) {
     if (res.status === 404) {
-      return []; // Usuario sin posts
+      return [];
     }
     throw new Error("Failed to fetch user posts");
   }
@@ -202,7 +237,7 @@ export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
   });
   if (!res.ok) {
     if (res.status === 404) {
-      return []; // Usuario sin comentarios
+      return [];
     }
     throw new Error("Failed to fetch user comments");
   }
@@ -257,7 +292,7 @@ export async function fetchSavedComments(apiKey: string): Promise<Comment[]> {
   return res.json();
 }
 
-// -------------------- SUBSCRIBED COMMUNITIES --------------------
+// -------------------- COMMUNITIES --------------------
 
 export async function fetchSubscribedCommunities(apiKey: string): Promise<Community[]> {
   const res = await fetch(`${COMMUNITIES_API_URL}/communities/?filter=subscribed`, {
@@ -265,4 +300,25 @@ export async function fetchSubscribedCommunities(apiKey: string): Promise<Commun
   });
   if (!res.ok) throw new Error("Failed to fetch subscribed communities");
   return res.json();
+}
+
+export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscribed' | 'local' = 'all'): Promise<Community[]> {
+  try {
+    const res = await fetch(`${COMMUNITIES_API_URL}/communities/?filter=${filter}`, {
+      headers: {
+        'Accept': 'application/json',
+        'X-API-Key': apiKey,
+      },
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Error ${res.status}: No s'han pogut carregar les comunitats`);
+    }
+
+    return res.json();
+  } catch (error) {
+    console.error('Error en fetchCommunities:', error);
+    throw error;
+  }
 }
