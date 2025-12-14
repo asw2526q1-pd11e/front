@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchUserProfile, fetchUserPosts, fetchUserComments, type UserProfile, type Post, type Comment } from '../services/api';
+import { fetchUserProfile, fetchUserPosts, fetchUserComments,
+  fetchSavedPosts, fetchSavedComments, fetchSubscribedCommunities,
+  toggleSavePost as apiToggleSavePost, toggleSaveComment as apiToggleSaveComment,
+  type UserProfile, type Post, type Comment, type Community } from '../services/api';
 import EditProfileModal from '../components/EditPerfilPage';
 
 const PerfilPage = () => {
@@ -15,6 +18,11 @@ const PerfilPage = () => {
   const [showMyComments, setShowMyComments] = useState(false);
   const [userComments, setUserComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+  const [savedComments, setSavedComments] = useState<Comment[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [subscribedCommunities, setSubscribedCommunities] = useState<Community[]>([]);
 
   useEffect(() => {
     if (user?.apiKey) {
@@ -34,6 +42,25 @@ const PerfilPage = () => {
   const handleProfileUpdate = (updatedProfile: UserProfile) => {
     setProfile(updatedProfile);
   };
+
+  const loadSubscribedCommunities = async () => {
+    if (!user?.apiKey) return;
+
+    try {
+      const communities = await fetchSubscribedCommunities(user.apiKey);
+      setSubscribedCommunities(communities);
+    } catch (err) {
+      console.error('Error carregant comunitats subscrites:', err);
+      setSubscribedCommunities([]);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.apiKey) {
+      loadUserPosts();
+      loadSubscribedCommunities(); // Añade esto
+    }
+  }, [user]);
 
   const loadUserPosts = async () => {
     if (!user?.apiKey) return;
@@ -56,39 +83,88 @@ const PerfilPage = () => {
     }
   }, [showMyPosts, user?.apiKey]);
 
-  const handleShowMyPosts = () => {
-    setShowMyPosts(!showMyPosts);
-    if (!showMyPosts) {
-      setShowMyComments(false); // Cierra comentarios
-    }
-  };
-
   useEffect(() => {
     if (user?.apiKey) {
       loadUserPosts(); // Cargar posts automáticamente
     }
   }, [user]);
 
-  const toggleSavePost = (postId: number) => {
-    setUserPosts(prevPosts =>
-        prevPosts.map(post =>
-            post.id === postId
-                ? { ...post, is_saved: !post.is_saved }
-                : post
-        )
-    );
-    console.log('Toggle save post:', postId);
+  const toggleSavePost = async (postId: number) => {
+    if (!user?.apiKey) return;
+
+    try {
+      const result = await apiToggleSavePost(user.apiKey, postId);
+
+      // Actualizar en userPosts
+      setUserPosts(prevPosts =>
+          prevPosts.map(post =>
+              post.id === postId ? { ...post, is_saved: result.saved } : post
+          )
+      );
+
+      // Si está en la vista de guardados, recargar
+      if (showSaved) {
+        loadSavedContent();
+      }
+    } catch (err) {
+      console.error('Error guardant post:', err);
+    }
   };
 
-  const toggleSaveComment = (commentId: number) => {
-    setUserComments(prevComments =>
-        prevComments.map(comment =>
-            comment.id === commentId
-                ? { ...comment, is_saved: !comment.is_saved }
-                : comment
-        )
-    );
-    console.log('Toggle save comment:', commentId);
+  const toggleSaveComment = async (commentId: number) => {
+    if (!user?.apiKey) return;
+
+    try {
+      const result = await apiToggleSaveComment(user.apiKey, commentId);
+
+      // Actualizar en userComments
+      setUserComments(prevComments =>
+          prevComments.map(comment =>
+              comment.id === commentId ? { ...comment, is_saved: result.saved } : comment
+          )
+      );
+
+      // Si está en la vista de guardados, recargar
+      if (showSaved) {
+        loadSavedContent();
+      }
+    } catch (err) {
+      console.error('Error guardant comentari:', err);
+    }
+  };
+
+  const loadSavedContent = async () => {
+    if (!user?.apiKey) return;
+
+    setLoadingSaved(true);
+    try {
+      const [posts, comments] = await Promise.all([
+        fetchSavedPosts(user.apiKey),
+        fetchSavedComments(user.apiKey)
+      ]);
+      setSavedPosts(posts);
+      setSavedComments(comments);
+    } catch (err) {
+      console.error('Error carregant contingut guardat:', err);
+      setSavedPosts([]);
+      setSavedComments([]);
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showSaved && user?.apiKey) {
+      loadSavedContent();
+    }
+  }, [showSaved, user?.apiKey]);
+
+  const handleShowSaved = () => {
+    setShowSaved(!showSaved);
+    if (!showSaved) {
+      setShowMyPosts(false);
+      setShowMyComments(false);
+    }
   };
 
   const loadUserComments = async () => {
@@ -112,10 +188,19 @@ const PerfilPage = () => {
     }
   }, [showMyComments, user?.apiKey]);
 
+  const handleShowMyPosts = () => {
+    setShowMyPosts(!showMyPosts);
+    if (!showMyPosts) {
+      setShowMyComments(false);
+      setShowSaved(false);
+    }
+  };
+
   const handleShowMyComments = () => {
     setShowMyComments(!showMyComments);
     if (!showMyComments) {
-      setShowMyPosts(false); // Cierra posts
+      setShowMyPosts(false);
+      setShowSaved(false);
     }
   };
 
@@ -237,11 +322,13 @@ const PerfilPage = () => {
               <p className="text-sm text-roseTheme-dark/60 font-medium">Posts</p>
             </div>
             <div className="text-center p-5 bg-gradient-to-br from-roseTheme-soft to-roseTheme-light rounded-xl border border-roseTheme-light shadow-sm">
-              <p className="text-3xl font-bold text-roseTheme-dark">156</p>
+              <p className="text-3xl font-bold text-roseTheme-dark">
+                {userPosts.reduce((sum, post) => sum + post.votes, 0)}
+              </p>
               <p className="text-sm text-roseTheme-dark/60 font-medium">Likes</p>
             </div>
             <div className="text-center p-5 bg-gradient-to-br from-roseTheme-soft to-roseTheme-light rounded-xl border border-roseTheme-light shadow-sm">
-              <p className="text-3xl font-bold text-roseTheme-dark">8</p>
+              <p className="text-3xl font-bold text-roseTheme-dark">{subscribedCommunities.length}</p>
               <p className="text-sm text-roseTheme-dark/60 font-medium">Comunitats</p>
             </div>
           </div>
@@ -268,7 +355,14 @@ const PerfilPage = () => {
             >
               💬 Els meus comentaris
             </button>
-            <button className="flex-1 bg-roseTheme-light text-roseTheme-dark font-semibold py-3 rounded-xl hover:bg-roseTheme-accent transition border border-roseTheme-accent">
+            <button
+                onClick={handleShowSaved}
+                className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                    showSaved
+                        ? 'bg-roseTheme-dark text-white border-roseTheme-dark'
+                        : 'bg-roseTheme-light text-roseTheme-dark border-roseTheme-accent hover:bg-roseTheme-accent'
+                }`}
+            >
               ⭐ Posts guardats
             </button>
             <button
@@ -476,6 +570,151 @@ const PerfilPage = () => {
                             )}
                         </div>
                     ))}
+                  </div>
+              )}
+            </div>
+          </div>
+      )}
+      {/* Secció de guardats */}
+      {showSaved && (
+          <div className="mt-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light p-6">
+              <h2 className="text-2xl font-bold text-roseTheme-dark mb-4 flex items-center gap-2">
+                ⭐ Contingut guardat
+                {loadingSaved && (
+                    <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                )}
+              </h2>
+
+              {loadingSaved ? (
+                  <div className="flex justify-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 border-4 border-roseTheme-light border-t-roseTheme-dark rounded-full animate-spin"></div>
+                      <p className="text-roseTheme-dark">Carregant...</p>
+                    </div>
+                  </div>
+              ) : savedPosts.length === 0 && savedComments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">⭐</div>
+                    <p className="text-roseTheme-dark/60 text-lg mb-2">No tens res guardat</p>
+                    <p className="text-roseTheme-dark/40 text-sm">Guarda posts i comentaris per veure'ls aquí</p>
+                  </div>
+              ) : (
+                  <div className="space-y-6">
+                    {/* Posts guardats */}
+                    {savedPosts.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-bold text-roseTheme-dark mb-3">📝 Posts guardats</h3>
+                          <div className="space-y-4">
+                            {savedPosts.map((post) => (
+                                <div
+                                    key={post.id}
+                                    className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
+                                >
+                                  <div className="flex items-start gap-4">
+                                    {post.image && (
+                                        <img
+                                            src={post.image}
+                                            alt={post.title}
+                                            className="w-24 h-24 object-cover rounded-lg"
+                                        />
+                                    )}
+                                    <div className="flex-1">
+                                      <div className="flex items-start justify-between gap-2 mb-1">
+                                        <h3 className="font-bold text-lg text-roseTheme-dark flex-1">
+                                          {post.title}
+                                        </h3>
+                                        {post.communities && post.communities.length > 0 && (
+                                            <span className="bg-roseTheme-light text-roseTheme-dark px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+                              📁 {post.communities[0]}
+                            </span>
+                                        )}
+                                      </div>
+                                      <p className="text-roseTheme-dark/70 text-sm mb-2 line-clamp-2">
+                                        {post.content}
+                                      </p>
+                                      <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
+                                        <span>❤️ {post.votes} likes</span>
+                                        {post.published_date && (
+                                            <span>📅 {new Date(post.published_date).toLocaleDateString('ca-ES')}</span>
+                                        )}
+                                        <button
+                                            onClick={() => toggleSavePost(post.id)}
+                                            style={{
+                                              background: 'transparent',
+                                              border: 'none',
+                                              padding: '0',
+                                              boxShadow: 'none',
+                                              cursor: 'pointer'
+                                            }}
+                                            className="hover:scale-110 transition-transform"
+                                            title="Desguardar"
+                                        >
+                                          <span className="text-lg">🌟</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            ))}
+                          </div>
+                        </div>
+                    )}
+
+                    {/* Comentaris guardats */}
+                    {savedComments.length > 0 && (
+                        <div>
+                          <h3 className="text-lg font-bold text-roseTheme-dark mb-3">💬 Comentaris guardats</h3>
+                          <div className="space-y-4">
+                            {savedComments.map((comment) => (
+                                <div
+                                    key={comment.id}
+                                    className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
+                                >
+                                  <div className="flex items-start gap-4">
+                                    {comment.image && (
+                                        <img
+                                            src={comment.image}
+                                            alt="Comment image"
+                                            className="w-20 h-20 object-cover rounded-lg"
+                                        />
+                                    )}
+                                    <div className="flex-1">
+                                      {comment.author && (
+                                          <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
+                                            👤 {comment.author}
+                                          </p>
+                                      )}
+                                      <p className="text-roseTheme-dark text-sm mb-2">
+                                        {comment.content}
+                                      </p>
+                                      <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
+                                        <span>❤️ {comment.votes} likes</span>
+                                        {comment.published_date && (
+                                            <span>📅 {new Date(comment.published_date).toLocaleDateString('ca-ES')}</span>
+                                        )}
+                                        <button
+                                            onClick={() => toggleSaveComment(comment.id)}
+                                            style={{
+                                              background: 'transparent',
+                                              border: 'none',
+                                              padding: '0',
+                                              boxShadow: 'none',
+                                              cursor: 'pointer'
+                                            }}
+                                            className="hover:scale-110 transition-transform"
+                                            title="Desguardar"
+                                        >
+                                          <span className="text-lg">🌟</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            ))}
+                          </div>
+                        </div>
+                    )}
                   </div>
               )}
             </div>
