@@ -322,3 +322,39 @@ export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscrib
     throw error;
   }
 }
+
+export async function createCommunity(
+    apiKey: string,
+    data: {
+      name: string;
+      avatar?: File;
+      banner?: File;
+    }
+): Promise<Community> {
+  const formData = new FormData();
+
+  formData.append('name', data.name);
+
+  if (data.avatar) {
+    formData.append('avatar', data.avatar);
+  }
+
+  if (data.banner) {
+    formData.append('banner', data.banner);
+  }
+
+  const res = await fetch(`${COMMUNITIES_API_URL}/api/communities/create/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Error creant la comunitat');
+  }
+
+  return res.json();
+}
