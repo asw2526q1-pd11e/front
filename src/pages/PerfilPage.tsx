@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { fetchUserProfile, fetchUserPosts, type UserProfile, type Post } from '../services/api';
+import { fetchUserProfile, fetchUserPosts, fetchUserComments, type UserProfile, type Post, type Comment } from '../services/api';
 import EditProfileModal from '../components/EditPerfilPage';
 
 const PerfilPage = () => {
@@ -12,6 +12,9 @@ const PerfilPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showMyPosts, setShowMyPosts] = useState(false);
+  const [showMyComments, setShowMyComments] = useState(false);
+  const [userComments, setUserComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     if (user?.apiKey) {
@@ -55,6 +58,9 @@ const PerfilPage = () => {
 
   const handleShowMyPosts = () => {
     setShowMyPosts(!showMyPosts);
+    if (!showMyPosts) {
+      setShowMyComments(false); // Cierra comentarios
+    }
   };
 
   useEffect(() => {
@@ -72,6 +78,45 @@ const PerfilPage = () => {
         )
     );
     console.log('Toggle save post:', postId);
+  };
+
+  const toggleSaveComment = (commentId: number) => {
+    setUserComments(prevComments =>
+        prevComments.map(comment =>
+            comment.id === commentId
+                ? { ...comment, is_saved: !comment.is_saved }
+                : comment
+        )
+    );
+    console.log('Toggle save comment:', commentId);
+  };
+
+  const loadUserComments = async () => {
+    if (!user?.apiKey) return;
+
+    setLoadingComments(true);
+    try {
+      const comments = await fetchUserComments(user.apiKey);
+      setUserComments(comments);
+    } catch (err) {
+      console.error('Error carregant comentaris:', err);
+      setUserComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showMyComments && user?.apiKey) {
+      loadUserComments();
+    }
+  }, [showMyComments, user?.apiKey]);
+
+  const handleShowMyComments = () => {
+    setShowMyComments(!showMyComments);
+    if (!showMyComments) {
+      setShowMyPosts(false); // Cierra posts
+    }
   };
 
   if (loading) {
@@ -213,6 +258,16 @@ const PerfilPage = () => {
             >
               📝 Els meus posts
             </button>
+            <button
+                onClick={handleShowMyComments}
+                className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                    showMyComments
+                        ? 'bg-roseTheme-dark text-white border-roseTheme-dark'
+                        : 'bg-roseTheme-light text-roseTheme-dark border-roseTheme-accent hover:bg-roseTheme-accent'
+                }`}
+            >
+              💬 Els meus comentaris
+            </button>
             <button className="flex-1 bg-roseTheme-light text-roseTheme-dark font-semibold py-3 rounded-xl hover:bg-roseTheme-accent transition border border-roseTheme-accent">
               ⭐ Posts guardats
             </button>
@@ -272,6 +327,11 @@ const PerfilPage = () => {
                                 />
                             )}
                             <div className="flex-1">
+                              {post.author && (
+                                  <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
+                                    👤 {post.author}
+                                  </p>
+                              )}
                               {/* Títol i comunitat */}
                               <div className="flex items-start justify-between gap-2 mb-1">
                                 <h3 className="font-bold text-lg text-roseTheme-dark flex-1">
@@ -323,6 +383,97 @@ const PerfilPage = () => {
                                 🔗 Veure més
                               </a>
                           )}
+                        </div>
+                    ))}
+                  </div>
+              )}
+            </div>
+          </div>
+      )}
+      {showMyComments && (
+          <div className="mt-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light p-6">
+              <h2 className="text-2xl font-bold text-roseTheme-dark mb-4 flex items-center gap-2">
+                💬 Els meus comentaris
+                {loadingComments && (
+                    <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                )}
+              </h2>
+
+              {loadingComments ? (
+                  <div className="flex justify-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 border-4 border-roseTheme-light border-t-roseTheme-dark rounded-full animate-spin"></div>
+                      <p className="text-roseTheme-dark">Carregant comentaris...</p>
+                    </div>
+                  </div>
+              ) : userComments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">💭</div>
+                    <p className="text-roseTheme-dark/60 text-lg mb-2">Encara no has comentat res</p>
+                    <p className="text-roseTheme-dark/40 text-sm">Els teus comentaris apareixeran aquí</p>
+                  </div>
+              ) : (
+                  <div className="space-y-4">
+                    {userComments.map((comment) => (
+                        <div
+                            key={comment.id}
+                            className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
+                        >
+                          <div className="flex-1">
+                            <div className="flex-1">
+                              {/* Autor del comentari */}
+                              {comment.author && (
+                                  <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
+                                    👤 {comment.author}
+                                  </p>
+                              )}
+
+                              <p className="text-roseTheme-dark text-sm mb-2">
+                                {comment.content}
+                              </p>
+
+                              <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
+                                <span>❤️ {comment.votes} likes</span>
+                                {comment.published_date && (
+                                    <span>📅 {new Date(comment.published_date).toLocaleDateString('ca-ES')}</span>
+                                )}
+                                {comment.post && (
+                                    <span className="text-roseTheme-dark/80">
+          📝 Post #{comment.post}
+        </span>
+                                )}
+                                <button
+                                    onClick={() => toggleSaveComment(comment.id)}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      padding: '0',
+                                      boxShadow: 'none',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="hover:scale-110 transition-transform"
+                                    title={comment.is_saved ? "Desguardar" : "Guardar"}
+                                >
+                                  {comment.is_saved ? (
+                                      <span className="text-lg">🌟</span>
+                                  ) : (
+                                      <span className="text-lg text-gray-400 hover:text-yellow-400 transition-colors">⭐</span>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                            </div>
+                          {comment.url && (
+                          <a
+                              href={comment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-roseTheme-dark hover:underline text-sm mt-2 block"
+                            >
+                            🔗 Veure comentari complet
+                            </a>
+                            )}
                         </div>
                     ))}
                   </div>
