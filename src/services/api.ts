@@ -128,6 +128,68 @@ export async function createPost(
   return res.json();
 }
 
+export async function updatePost(
+    apiKey: string,
+    postId: number,
+    data: {
+      title?: string;
+      content?: string;
+      url?: string;
+      image?: File;
+      communities?: string[];
+    }
+): Promise<Post> {
+  const formData = new FormData();
+
+  // Solo añadir campos que tengan valor
+  if (data.title && data.title.trim()) {
+    formData.append('title', data.title.trim());
+  }
+
+  if (data.content && data.content.trim()) {
+    formData.append('content', data.content.trim());
+  }
+
+  if (data.url && data.url.trim() && !data.url.includes('/blog/posts/') && !data.url.includes('/api/posts/')) {
+    formData.append('url', data.url.trim());
+  }
+
+  if (data.image) {
+    formData.append('image', data.image);
+  }
+
+  if (data.communities && data.communities.length > 0) {
+    data.communities.forEach(community => {
+      formData.append('communities', community);
+    });
+  }
+
+  const res = await fetch(`${API_URL}/posts/${postId}/edit/`, {
+    method: 'PATCH',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = { detail: errorText };
+    }
+
+    throw new Error(errorData.detail || `Error ${res.status}: Error actualitzant el post`);
+  }
+
+  const result = await res.json();
+
+  return result;
+}
+
 // -------------------- COMMENTS --------------------
 
 export async function fetchPostComments(postId: number, apiKey?: string): Promise<Comment[]> {
