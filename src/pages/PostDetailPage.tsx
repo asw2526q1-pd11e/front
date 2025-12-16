@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { fetchPostDetail, fetchPostComments, toggleSavePost as apiToggleSavePost } from "../services/api";
+import { fetchPostDetail, fetchPostComments, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
 
 interface Post {
@@ -79,6 +79,28 @@ export default function PostDetailPage() {
             setPost(prev => prev ? { ...prev, is_saved: result.saved } : null);
         } catch (err) {
             console.error('Error guardant post:', err);
+        }
+    };
+
+    const handleUpvote = async () => {
+        if (!user?.apiKey || !post) return;
+
+        try {
+            const result = await upvotePost(user.apiKey, post.id);
+            setPost(prev => prev ? { ...prev, votes: result.votes } : null);
+        } catch (err) {
+            console.error('Error fent upvote:', err);
+        }
+    };
+
+    const handleDownvote = async () => {
+        if (!user?.apiKey || !post) return;
+
+        try {
+            const result = await downvotePost(user.apiKey, post.id);
+            setPost(prev => prev ? { ...prev, votes: result.votes } : null);
+        } catch (err) {
+            console.error('Error fent downvote:', err);
         }
     };
 
@@ -205,9 +227,32 @@ export default function PostDetailPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-6 text-sm border-t border-roseTheme-light pt-4">
-                        <span className="flex items-center gap-2">
-                            ❤️ <strong>{post.votes}</strong> likes
-                        </span>
+                        {/* Voting buttons */}
+                        <div className="flex items-center gap-2">
+                            {user && (
+                                <button
+                                    onClick={handleUpvote}
+                                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-green-100 transition-colors group"
+                                    title="Upvote"
+                                >
+                                    <span className="text-gray-500 group-hover:text-green-600 text-lg">⬆️</span>
+                                </button>
+                            )}
+                            
+                            <span className="flex items-center gap-1 font-semibold min-w-[3rem] justify-center">
+                                <strong className="text-roseTheme-dark">{post.votes}</strong>
+                            </span>
+                            
+                            {user && (
+                                <button
+                                    onClick={handleDownvote}
+                                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-red-100 transition-colors group"
+                                    title="Downvote"
+                                >
+                                    <span className="text-gray-500 group-hover:text-red-600 text-lg">⬇️</span>
+                                </button>
+                            )}
+                        </div>
                         
                         {user && (
                             <button
@@ -260,7 +305,11 @@ export default function PostDetailPage() {
                                     </p>
                                     
                                     <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
-                                        <span>❤️ {comment.votes} likes</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-sm">⬆️</span>
+                                            <span className="font-semibold">{comment.votes}</span>
+                                            <span className="text-sm">⬇️</span>
+                                        </div>
                                     </div>
                                 </div>
                             ))}

@@ -191,6 +191,30 @@ export async function updatePost(
   return result;
 }
 
+// -------------------- POST VOTING --------------------
+
+export async function upvotePost(apiKey: string, postId: number): Promise<{ votes: number }> {
+  const res = await fetch(`${API_URL}/posts/${postId}/upvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to upvote post");
+  return res.json();
+}
+
+export async function downvotePost(apiKey: string, postId: number): Promise<{ votes: number }> {
+  const res = await fetch(`${API_URL}/posts/${postId}/downvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to downvote post");
+  return res.json();
+}
+
 // -------------------- COMMENTS --------------------
 
 export async function fetchPostComments(postId: number, apiKey?: string): Promise<Comment[]> {
