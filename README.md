@@ -77,6 +77,9 @@ front-asw-pd11e-dj/
 │   ├── components/                  # Components React reutilitzables
 │   │   ├── AuthProvider.tsx        # Provider del context d'autenticació
 │   │   ├── CommunityCard.tsx       # Targeta de comunitat (estil programming.dev)
+│   │   ├── CreatePostModal.tsx     # Modal per crear nous posts
+│   │   ├── EditPostModal.tsx       # Modal per editar posts existents
+│   │   ├── EditPerfilPage.tsx      # Componente per editar perfil d'usuari
 │   │   ├── Layout.tsx              # Layout principal amb Navbar
 │   │   ├── Navbar.tsx              # Barra de navegació persistent
 │   │   └── PostCard.tsx            # Targeta de post (estil Twitter)
@@ -94,6 +97,7 @@ front-asw-pd11e-dj/
 │   │   ├── ComunitatsPage.tsx      # Llistat de comunitats amb cerca
 │   │   ├── LoginPage.tsx           # Pàgina de login amb selecció d'usuari
 │   │   ├── PerfilPage.tsx          # Perfil d'usuari amb info del backend
+│   │   ├── PostDetailPage.tsx      # Pàgina de detall d'un post amb comentaris
 │   │   └── PostsPage.tsx           # Feed principal de posts (timeline)
 │   │
 │   ├── services/                    # Capa de serveis (API calls)

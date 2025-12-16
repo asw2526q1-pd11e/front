@@ -22,18 +22,14 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
     useEffect(() => {
         const loadCommunities = async () => {
             try {
-                console.log('Carregant comunitats amb apiKey:', apiKey);
                 const data = await fetchCommunities(apiKey, 'all');
-                console.log('Comunitats carregades:', data);
                 setAvailableCommunities(data);
                 setError(null);
             } catch (err) {
-                console.error('Error fetching communities:', err);
                 // Si no es poden carregar les comunitats, continuem sense elles
                 // No és obligatori tenir comunitats per crear un post
                 setAvailableCommunities([]);
                 setError(null); // No mostrem error, ja que no és crític
-                console.log('Continuant sense comunitats - això és opcional');
             } finally {
                 setLoadingCommunities(false);
             }
@@ -60,21 +56,11 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('🚀 Iniciant creació del post...');
-        console.log('📝 Dades del post:', {
-            title,
-            content: content.substring(0, 50) + '...',
-            url,
-            hasImage: !!image,
-            communities: selectedCommunities
-        });
-        
         setLoading(true);
         setError(null);
 
         try {
-            console.log('📡 Enviant petició a createPost...');
-            const result = await createPost(apiKey, {
+            await createPost(apiKey, {
                 title,
                 content,
                 url: url || undefined,
@@ -82,21 +68,13 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                 communities: selectedCommunities, // Pot estar buit, no passa res
             });
             
-            console.log('✅ Post creat correctament:', result);
-            console.log('🔄 Actualitzant llista de posts...');
             onPostCreated();
-            console.log('❌ Tancant modal...');
             onClose();
         } catch (err) {
-            console.error('❌ Error creant post:', err);
-            console.error('❌ Error complet:', JSON.stringify(err, null, 2));
             const errorMessage = err instanceof Error ? err.message : 'Error desconegut';
-            console.error('❌ Missatge error final:', errorMessage);
             setError(`Error: ${errorMessage}`);
             // NO tanquem el modal quan hi ha error perquè l'usuari pugui veure'l
-            console.log('⚠️ Modal mantingut obert per mostrar error');
         } finally {
-            console.log('🏁 Finalitzant handleSubmit, loading = false');
             setLoading(false);
         }
     };
