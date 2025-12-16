@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchPosts, toggleSavePost as apiToggleSavePost } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
 import CreatePostModal from '../components/CreatePostModal';
@@ -24,6 +25,7 @@ export default function PostsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingPost, setEditingPost] = useState<Post | null>(null);
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const loadPosts = () => {
         setLoading(true);
@@ -154,11 +156,13 @@ export default function PostsPage() {
                                             <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
                                                 👤 {post.author}
                                             </p>
-                                        )}
-                                        <div className="flex items-start justify-between gap-2 mb-2">
-                                            <h3 className="font-bold text-lg text-roseTheme-dark flex-1">
-                                                {post.title}
-                                            </h3>
+                                        )}                        <div className="flex items-start justify-between gap-2 mb-2">
+                            <h3 
+                                className="font-bold text-lg text-roseTheme-dark flex-1 cursor-pointer hover:text-rose-600 transition-colors"
+                                onClick={() => navigate(`/posts/${post.id}`)}
+                            >
+                                {post.title}
+                            </h3>
                                             {post.communities && post.communities.length > 0 && (
                                                 <div className="flex flex-wrap gap-1 justify-end">
                                                     {post.communities.map((community, idx) => (

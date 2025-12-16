@@ -108,6 +108,7 @@ export async function createPost(
     formData.append('image', data.image);
   }
 
+  // Afegir comunitats (pot ser array buit)
   data.communities.forEach(community => {
     formData.append('communities', community);
   });
@@ -122,7 +123,7 @@ export async function createPost(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'Error creant el post');
+    throw new Error(errorData.detail || `Error ${res.status}: No s'ha pogut crear el post`);
   }
 
   return res.json();
@@ -188,6 +189,30 @@ export async function updatePost(
   const result = await res.json();
 
   return result;
+}
+
+// -------------------- POST VOTING --------------------
+
+export async function upvotePost(apiKey: string, postId: number): Promise<{ votes: number }> {
+  const res = await fetch(`${API_URL}/posts/${postId}/upvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to upvote post");
+  return res.json();
+}
+
+export async function downvotePost(apiKey: string, postId: number): Promise<{ votes: number }> {
+  const res = await fetch(`${API_URL}/posts/${postId}/downvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to downvote post");
+  return res.json();
 }
 
 // -------------------- COMMENTS --------------------
@@ -378,7 +403,16 @@ export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscrib
       throw new Error(errorData.detail || `Error ${res.status}: No s'han pogut carregar les comunitats`);
     }
 
-    return res.json();
+    const data = await res.json();
+    
+    // El backend pot retornar directament un array o un objecte amb propietat 'communities'
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && Array.isArray(data.communities)) {
+      return data.communities;
+    } else {
+      return [];
+    }
   } catch (error) {
     console.error('Error en fetchCommunities:', error);
     throw error;

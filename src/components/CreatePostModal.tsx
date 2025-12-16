@@ -22,15 +22,14 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
     useEffect(() => {
         const loadCommunities = async () => {
             try {
-                console.log('Carregant comunitats amb apiKey:', apiKey);
                 const data = await fetchCommunities(apiKey, 'all');
-                console.log('Comunitats carregades:', data);
                 setAvailableCommunities(data);
                 setError(null);
             } catch (err) {
-                console.error('Error complet fetching communities:', err);
-                const errorMessage = err instanceof Error ? err.message : 'No s\'han pogut carregar les comunitats';
-                setError(`${errorMessage}. Assegura't que el backend està corrent.`);
+                // Si no es poden carregar les comunitats, continuem sense elles
+                // No és obligatori tenir comunitats per crear un post
+                setAvailableCommunities([]);
+                setError(null); // No mostrem error, ja que no és crític
             } finally {
                 setLoadingCommunities(false);
             }
@@ -61,23 +60,20 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
         setError(null);
 
         try {
-            if (selectedCommunities.length === 0) {
-                throw new Error('Has de seleccionar almenys una comunitat');
-            }
-
             await createPost(apiKey, {
                 title,
                 content,
                 url: url || undefined,
                 image: image || undefined,
-                communities: selectedCommunities,
+                communities: selectedCommunities, // Pot estar buit, no passa res
             });
-
+            
             onPostCreated();
             onClose();
         } catch (err) {
-            console.error('Error:', err);
-            setError(err instanceof Error ? err.message : 'Error desconegut');
+            const errorMessage = err instanceof Error ? err.message : 'Error desconegut';
+            setError(`Error: ${errorMessage}`);
+            // NO tanquem el modal quan hi ha error perquè l'usuari pugui veure'l
         } finally {
             setLoading(false);
         }
@@ -182,7 +178,7 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                     {/* Comunitats */}
                     <div>
                         <label className="block text-rose-800 font-bold text-sm mb-2">
-                            📁 COMUNITATS * ({selectedCommunities.length} seleccionades)
+                            📁 COMUNITATS (opcional) ({selectedCommunities.length} seleccionades)
                         </label>
 
                         {loadingCommunities ? (
@@ -191,8 +187,10 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                                 <span className="ml-2 text-rose-700">Carregant comunitats...</span>
                             </div>
                         ) : availableCommunities.length === 0 ? (
-                            <div className="bg-rose-50 border-2 border-rose-300 text-rose-800 px-4 py-3 rounded-xl">
-                                <p className="text-sm">No hi ha comunitats disponibles</p>
+                            <div className="bg-blue-50 border-2 border-blue-300 text-blue-800 px-4 py-3 rounded-xl">
+                                <p className="text-sm">
+                                    📋 No hi ha comunitats disponibles. Pots crear el post sense comunitat.
+                                </p>
                             </div>
                         ) : (
                             <div className="border-2 border-rose-400 rounded-2xl p-3 max-h-48 overflow-y-auto bg-white">
@@ -264,7 +262,7 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                         </button>
                         <button
                             type="submit"
-                            disabled={loading || !title.trim() || !content.trim() || selectedCommunities.length === 0}
+                            disabled={loading || !title.trim() || !content.trim()}
                             className="flex-1 bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white font-bold py-3 rounded-xl hover:from-rose-600 hover:via-pink-600 hover:to-rose-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                         >
                             {loading ? (
