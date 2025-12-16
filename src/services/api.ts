@@ -454,3 +454,20 @@ export async function createCommunity(
 
   return res.json();
 }
+
+// Afegeix aquesta funció a la secció de COMMUNITIES en api.ts
+
+export async function fetchCommunityPosts(communityId: number, apiKey?: string): Promise<Post[]> {
+  const res = await fetch(`${COMMUNITIES_API_URL}/communities/${communityId}/posts/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error('Comunitat no trobada');
+    }
+    throw new Error('No s\'han pogut carregar els posts de la comunitat');
+  }
+  
+  return res.json();
+}

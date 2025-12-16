@@ -8,6 +8,7 @@ import Layout from "./components/Layout";
 import PostsPage from "./pages/PostsPage";
 import PostDetailPage from "./pages/PostDetailPage";
 import ComunitatsPage from "./pages/ComunitatsPage";
+import CommunityDetail from "./pages/CommunityDetail";
 import PerfilPage from "./pages/PerfilPage";
 import LoginPage from "./pages/LoginPage";
 
@@ -44,6 +45,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route index element={<PostsPage />} />
             <Route path="posts/:id" element={<PostDetailPage />} />
             <Route path="comunitats" element={<ComunitatsPage />} />
+            <Route path="comunitats/:id" element={<CommunityDetail />} />
             <Route path="perfil" element={<PerfilPage />} />
           </Route>
 

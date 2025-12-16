@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface Community {
   id: number;
@@ -17,13 +18,18 @@ interface Props {
 const CommunityCard: React.FC<Props> = ({ community }) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = (e: React.MouseEvent) => {
+    e.preventDefault(); // Evita que el Link es dispari
+    e.stopPropagation(); // Evita la propagació de l'event
     setIsSubscribed(!isSubscribed);
     // Aquí pots afegir la lògica per fer la petició al backend
   };
 
   return (
-    <div className="bg-white rounded-xl border-2 border-roseTheme-light hover:border-roseTheme hover:shadow-lg transition-all duration-300 overflow-hidden group">
+    <Link 
+      to={`/comunitats/${community.id}`}
+      className="block bg-white rounded-xl border-2 border-roseTheme-light hover:border-roseTheme hover:shadow-lg transition-all duration-300 overflow-hidden group"
+    >
       {/* Banner superior (si existeix) */}
       {community.banner && (
         <div className="h-24 bg-gradient-to-r from-roseTheme-light to-roseTheme-accent overflow-hidden">
@@ -118,7 +124,7 @@ const CommunityCard: React.FC<Props> = ({ community }) => {
           </button>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
