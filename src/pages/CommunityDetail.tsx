@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { fetchCommunityDetail, fetchCommunityPosts, type Community, type Post } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import PostCard from '../components/PostCard';
+import EditPostModal from '../components/EditPostModal';
 
 const CommunityDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -11,37 +12,43 @@ const CommunityDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!id) return;
-
-    const loadCommunityData = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const [communityData, postsData] = await Promise.all([
-          fetchCommunityDetail(Number(id), user?.apiKey),
-          fetchCommunityPosts(Number(id), user?.apiKey)
-        ]);
-
-        setCommunity(communityData);
-        setPosts(postsData);
-      } catch (err: any) {
-        console.error('Error loading community:', err);
-        setError(err.message || 'No s\'ha pogut carregar la comunitat');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadCommunityData();
   }, [id, user?.apiKey]);
 
   const handleSubscribe = () => {
     setIsSubscribed(!isSubscribed);
     // TODO: Implementar crida API per subscriure's
+  };
+
+  const handlePostUpdated = () => {
+    loadCommunityData();
+    setEditingPost(null);
+  };
+
+  const loadCommunityData = async () => {
+    if (!id) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [communityData, postsData] = await Promise.all([
+        fetchCommunityDetail(Number(id), user?.apiKey),
+        fetchCommunityPosts(Number(id), user?.apiKey)
+      ]);
+
+      setCommunity(communityData);
+      setPosts(postsData);
+    } catch (err: any) {
+      console.error('Error loading community:', err);
+      setError(err.message || 'No s\'ha pogut carregar la comunitat');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -211,14 +218,31 @@ const CommunityDetail = () => {
           ) : (
             <div className="space-y-0 border-2 border-roseTheme-light rounded-xl overflow-hidden divide-y divide-roseTheme-light">
               {posts.map(post => (
-                <Link key={post.id} to={`/posts/${post.id}`} className="block">
-                  <PostCard post={post} />
-                </Link>
+                <PostCard 
+                  key={post.id} 
+                  post={post}
+                  onPostDeleted={(postId) => {
+                    setPosts(posts.filter(p => p.id !== postId));
+                  }}
+                  onPostEdited={(post) => {
+                    setEditingPost(post);
+                  }}
+                />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal de editar post */}
+      {editingPost && user?.apiKey && (
+        <EditPostModal
+          post={editingPost}
+          apiKey={user.apiKey}
+          onClose={() => setEditingPost(null)}
+          onPostUpdated={handlePostUpdated}
+        />
+      )}
     </div>
   );
 };

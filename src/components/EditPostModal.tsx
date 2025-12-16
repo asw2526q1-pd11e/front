@@ -64,7 +64,7 @@ const EditPostModal = ({ post, apiKey, onClose, onPostUpdated }: EditPostModalPr
                 image: image || undefined,
                 communities: selectedCommunities,
             });
-
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}></div>
             onPostUpdated();
             onClose();
         } catch (err: any) {
