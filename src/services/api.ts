@@ -254,16 +254,14 @@ export async function deletePost(apiKey: string, postId: number): Promise<void> 
 
 // -------------------- COMMENTS --------------------
 
-export async function fetchPostComments(postId: number, apiKey?: string): Promise<Comment[]> {
-  const res = await fetch(`${API_URL}/posts/${postId}/comments/`, {
-    headers: getAuthHeaders(apiKey)
-  });
-  if (!res.ok) throw new Error("Failed to fetch comments");
-  return res.json();
-}
-
-export async function fetchPostCommentsTree(postId: number, apiKey?: string): Promise<Comment[]> {
-  const res = await fetch(`${API_URL}/posts/${postId}/comments/tree/`, {
+export async function fetchPostCommentsTree(
+  postId: number, 
+  apiKey?: string,
+  order: 'new' | 'old' | 'top' = 'new'
+): Promise<Comment[]> {
+  const params = new URLSearchParams({ order });
+  
+  const res = await fetch(`${API_URL}/posts/${postId}/comments_tree/?${params.toString()}`, {
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch comments tree");
