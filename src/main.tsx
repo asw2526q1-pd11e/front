@@ -6,6 +6,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { useAuth } from "./hooks/useAuth";
 import Layout from "./components/Layout";
 import PostsPage from "./pages/PostsPage";
+import PostDetailPage from "./pages/PostDetailPage";
 import ComunitatsPage from "./pages/ComunitatsPage";
 import PerfilPage from "./pages/PerfilPage";
 import LoginPage from "./pages/LoginPage";
@@ -41,6 +42,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             }
           >
             <Route index element={<PostsPage />} />
+            <Route path="posts/:id" element={<PostDetailPage />} />
             <Route path="comunitats" element={<ComunitatsPage />} />
             <Route path="perfil" element={<PerfilPage />} />
           </Route>

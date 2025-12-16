@@ -95,6 +95,15 @@ export async function createPost(
       communities: string[];
     }
 ): Promise<Post> {
+  console.log('🔧 createPost iniciada amb dades:', {
+    title: data.title,
+    contentLength: data.content.length,
+    hasUrl: !!data.url,
+    hasImage: !!data.image,
+    communitiesCount: data.communities.length,
+    communities: data.communities
+  });
+
   const formData = new FormData();
 
   formData.append('title', data.title);
@@ -102,30 +111,46 @@ export async function createPost(
 
   if (data.url) {
     formData.append('url', data.url);
+    console.log('🔗 URL afegida:', data.url);
   }
 
   if (data.image) {
     formData.append('image', data.image);
+    console.log('🖼️ Imatge afegida:', data.image.name);
   }
 
+  // Afegir comunitats (pot ser array buit)
+  console.log('📁 Afegint comunitats:', data.communities);
   data.communities.forEach(community => {
     formData.append('communities', community);
   });
 
-  const res = await fetch(`${API_URL}/posts/create/`, {
-    method: 'POST',
-    headers: {
-      'X-API-Key': apiKey,
-    },
-    body: formData,
-  });
+  console.log('📡 Enviant petició a:', `${API_URL}/posts/create/`);
+  
+  try {
+    const res = await fetch(`${API_URL}/posts/create/`, {
+      method: 'POST',
+      headers: {
+        'X-API-Key': apiKey,
+      },
+      body: formData,
+    });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'Error creant el post');
+    console.log('📡 Resposta rebuda, status:', res.status);
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.error('❌ Error del servidor:', errorData);
+      throw new Error(errorData.detail || `Error ${res.status}: No s'ha pogut crear el post`);
+    }
+
+    const result = await res.json();
+    console.log('✅ Post creat correctament:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Error en createPost:', error);
+    throw error;
   }
-
-  return res.json();
 }
 
 export async function updatePost(
@@ -378,7 +403,20 @@ export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscrib
       throw new Error(errorData.detail || `Error ${res.status}: No s'han pogut carregar les comunitats`);
     }
 
-    return res.json();
+    const data = await res.json();
+    console.log('📊 Resposta fetchCommunities:', data);
+    
+    // El backend pot retornar directament un array o un objecte amb propietat 'communities'
+    if (Array.isArray(data)) {
+      console.log('✅ Array de comunitats rebut directament');
+      return data;
+    } else if (data && Array.isArray(data.communities)) {
+      console.log('✅ Array de comunitats rebut dins d\'objecte');
+      return data.communities;
+    } else {
+      console.log('⚠️ Format de resposta inesperat, retornant array buit');
+      return [];
+    }
   } catch (error) {
     console.error('Error en fetchCommunities:', error);
     throw error;
