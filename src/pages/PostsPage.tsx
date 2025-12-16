@@ -7,17 +7,24 @@ import EditPostModal from '../components/EditPostModal';
 import PostCard from '../components/PostCard';
 import type { Post } from '../services/api';
 
+type FilterType = 'all' | 'subscribed' | 'local';
+type OrderType = 'new' | 'old' | 'comments' | 'votes';
+
 export default function PostsPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingPost, setEditingPost] = useState<Post | null>(null);
+    const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+    const [activeOrder, setActiveOrder] = useState<OrderType>('new');
     const { user } = useAuth();
 
     const loadPosts = () => {
         setLoading(true);
-        fetchPosts(user?.apiKey)
+        setError(null);
+        
+        fetchPosts(user?.apiKey, activeFilter, activeOrder)
             .then(data => {
                 setPosts(data);
                 setError(null);
@@ -31,7 +38,7 @@ export default function PostsPage() {
 
     useEffect(() => {
         loadPosts();
-    }, [user]);
+    }, [user, activeFilter, activeOrder]);
 
     const handlePostCreated = () => {
         loadPosts();
@@ -94,12 +101,53 @@ export default function PostsPage() {
             <div className="max-w-3xl mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-4xl font-bold text-roseTheme-dark mb-2">
-                        🏠 Inici
-                    </h1>
-                    <p className="text-roseTheme-dark/70 text-lg">
-                        Descobreix els últims posts de la comunitat
-                    </p>
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h1 className="text-4xl font-bold text-roseTheme-dark mb-1">
+                                Inici
+                            </h1>
+                            <p className="text-roseTheme-dark/70">
+                                Descobreix els últims posts de la comunitat
+                            </p>
+                        </div>
+
+                        {/* Filtres compactes en una línia */}
+                        <div className="flex items-center gap-3">
+                            {/* Filtre per tipus */}
+                            <div className="relative">
+                                <select
+                                    value={activeFilter}
+                                    onChange={(e) => setActiveFilter(e.target.value as FilterType)}
+                                    disabled={!user && (activeFilter === 'subscribed' || activeFilter === 'local')}
+                                    className="appearance-none bg-white border-2 border-roseTheme-light rounded-lg px-4 py-2 pr-10 text-sm font-semibold text-roseTheme-dark hover:border-roseTheme focus:outline-none focus:border-roseTheme transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <option value="all">Tots els posts</option>
+                                    <option value="subscribed" disabled={!user}>Posts subscrits</option>
+                                    <option value="local" disabled={!user}>Posts locals</option>
+                                </select>
+                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-roseTheme-dark pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+
+                            {/* Ordenació */}
+                            <div className="relative">
+                                <select
+                                    value={activeOrder}
+                                    onChange={(e) => setActiveOrder(e.target.value as OrderType)}
+                                    className="appearance-none bg-white border-2 border-roseTheme-light rounded-lg px-4 py-2 pr-10 text-sm font-semibold text-roseTheme-dark hover:border-roseTheme focus:outline-none focus:border-roseTheme transition cursor-pointer"
+                                >
+                                    <option value="new">Més recents</option>
+                                    <option value="old">Més antics</option>
+                                    <option value="votes">Més votats</option>
+                                    <option value="comments">Més comentats</option>
+                                </select>
+                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-roseTheme-dark pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {posts.length === 0 ? (

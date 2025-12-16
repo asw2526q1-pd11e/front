@@ -69,8 +69,17 @@ function getAuthHeaders(apiKey?: string): HeadersInit {
 
 // -------------------- POSTS --------------------
 
-export async function fetchPosts(apiKey?: string): Promise<Post[]> {
-  const res = await fetch(`${API_URL}/posts/`, {
+export async function fetchPosts(
+  apiKey?: string, 
+  filter: 'all' | 'subscribed' | 'local' = 'all',
+  order: 'new' | 'old' | 'comments' | 'votes' = 'new'
+): Promise<Post[]> {
+  const params = new URLSearchParams({
+    filter,
+    order
+  });
+  
+  const res = await fetch(`${API_URL}/posts/?${params.toString()}`, {
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch posts");
