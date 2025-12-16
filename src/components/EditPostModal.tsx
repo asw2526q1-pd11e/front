@@ -57,10 +57,6 @@ const EditPostModal = ({ post, apiKey, onClose, onPostUpdated }: EditPostModalPr
         setError(null);
 
         try {
-            if (selectedCommunities.length === 0) {
-                throw new Error('Has de seleccionar almenys una comunitat');
-            }
-
             const response = await updatePost(apiKey, post.id, {
                 title,
                 content,

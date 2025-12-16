@@ -26,10 +26,10 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                 setAvailableCommunities(data);
                 setError(null);
             } catch (err) {
-                // Si no es poden carregar les comunitats, continuem sense elles
-                // No és obligatori tenir comunitats per crear un post
+                console.error('Error fetching communities:', err);
+                // Mantenim el modal obert però mostrem que no hi ha comunitats
                 setAvailableCommunities([]);
-                setError(null); // No mostrem error, ja que no és crític
+                setError(null); // No mostrem error perquè el modal ha de seguir obert
             } finally {
                 setLoadingCommunities(false);
             }
@@ -60,12 +60,16 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
         setError(null);
 
         try {
+            if (selectedCommunities.length === 0) {
+                throw new Error('Has de seleccionar almenys una comunitat');
+            }
+
             await createPost(apiKey, {
                 title,
                 content,
                 url: url || undefined,
                 image: image || undefined,
-                communities: selectedCommunities, // Pot estar buit, no passa res
+                communities: selectedCommunities,
             });
             
             onPostCreated();
@@ -178,7 +182,7 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                     {/* Comunitats */}
                     <div>
                         <label className="block text-rose-800 font-bold text-sm mb-2">
-                            📁 COMUNITATS (opcional) ({selectedCommunities.length} seleccionades)
+                            📁 COMUNITATS * ({selectedCommunities.length} seleccionades)
                         </label>
 
                         {loadingCommunities ? (
@@ -187,9 +191,12 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                                 <span className="ml-2 text-rose-700">Carregant comunitats...</span>
                             </div>
                         ) : availableCommunities.length === 0 ? (
-                            <div className="bg-blue-50 border-2 border-blue-300 text-blue-800 px-4 py-3 rounded-xl">
-                                <p className="text-sm">
-                                    📋 No hi ha comunitats disponibles. Pots crear el post sense comunitat.
+                            <div className="bg-red-50 border-2 border-red-300 text-red-800 px-4 py-3 rounded-xl">
+                                <p className="text-sm font-semibold">
+                                    ⚠️ No hi ha comunitats disponibles
+                                </p>
+                                <p className="text-xs mt-1">
+                                    Necessites seleccionar almenys una comunitat per crear un post. Contacta amb l'administrador per crear comunitats.
                                 </p>
                             </div>
                         ) : (
@@ -262,7 +269,7 @@ const CreatePostModal = ({ apiKey, onClose, onPostCreated }: CreatePostModalProp
                         </button>
                         <button
                             type="submit"
-                            disabled={loading || !title.trim() || !content.trim()}
+                            disabled={loading || !title.trim() || !content.trim() || selectedCommunities.length === 0}
                             className="flex-1 bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white font-bold py-3 rounded-xl hover:from-rose-600 hover:via-pink-600 hover:to-rose-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                         >
                             {loading ? (

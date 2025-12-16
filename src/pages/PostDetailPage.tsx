@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { fetchPostDetail, fetchPostComments, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost } from "../services/api";
+import { fetchPostDetail, fetchPostComments, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost, deletePost } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
+import EditPostModal from '../components/EditPostModal';
 
 interface Post {
     id: number;
@@ -39,6 +40,8 @@ export default function PostDetailPage() {
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     useEffect(() => {
         if (!id) {
@@ -102,6 +105,36 @@ export default function PostDetailPage() {
         } catch (err) {
             console.error('Error fent downvote:', err);
         }
+    };
+
+    const handleDeletePost = async () => {
+        if (!user?.apiKey || !post) return;
+
+        try {
+            await deletePost(user.apiKey, post.id);
+            // Redirigir a la página de posts después de eliminar
+            navigate('/');
+        } catch (err) {
+            console.error('Error eliminant post:', err);
+            setError(err instanceof Error ? err.message : 'Error eliminant el post');
+        }
+    };
+
+    const handlePostUpdated = () => {
+        // Recargar los datos del post después de editar
+        if (!id) return;
+        
+        const loadPostDetail = async () => {
+            try {
+                const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
+                setPost(postData);
+            } catch (err) {
+                console.error("Error reloading post:", err);
+            }
+        };
+        
+        loadPostDetail();
+        setShowEditModal(false);
     };
 
     if (loading) {
@@ -268,6 +301,29 @@ export default function PostDetailPage() {
                                 {post.is_saved ? "Guardat" : "Guardar"}
                             </button>
                         )}
+                        
+                        {/* Botones de editar y eliminar - solo para el autor */}
+                        {user && post.author && user.name === post.author && (
+                            <>
+                                <button
+                                    onClick={() => setShowEditModal(true)}
+                                    className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:scale-105 transition-all"
+                                    title="Editar post"
+                                >
+                                    <span className="text-lg">✏️</span>
+                                    <span className="font-semibold">Editar</span>
+                                </button>
+                                
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="flex items-center gap-2 text-red-600 hover:text-red-800 hover:scale-105 transition-all"
+                                    title="Eliminar post"
+                                >
+                                    <span className="text-lg">🗑️</span>
+                                    <span className="font-semibold">Eliminar</span>
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -317,6 +373,48 @@ export default function PostDetailPage() {
                     )}
                 </div>
             </div>
+
+            {/* Modal de confirmación para eliminar post */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <div className="text-center">
+                            <div className="text-6xl mb-4">⚠️</div>
+                            <h2 className="text-2xl font-bold text-red-600 mb-4">Eliminar Post</h2>
+                            <p className="text-gray-700 mb-6">
+                                Estàs segur que vols eliminar aquest post? Aquesta acció no es pot desfer.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition"
+                                >
+                                    Cancel·lar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false);
+                                        handleDeletePost();
+                                    }}
+                                    className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition"
+                                >
+                                    🗑️ Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de editar post */}
+            {showEditModal && user?.apiKey && post && (
+                <EditPostModal
+                    post={post}
+                    apiKey={user.apiKey}
+                    onClose={() => setShowEditModal(false)}
+                    onPostUpdated={handlePostUpdated}
+                />
+            )}
         </div>
     );
 }
