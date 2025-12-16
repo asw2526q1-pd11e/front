@@ -215,6 +215,34 @@ export async function downvotePost(apiKey: string, postId: number): Promise<{ vo
   return res.json();
 }
 
+export async function deletePost(apiKey: string, postId: number): Promise<void> {
+  const res = await fetch(`${API_URL}/posts/${postId}/delete/`, {
+    method: 'DELETE',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  
+  // Los códigos 200-299 son exitosos (incluyendo 204 No Content)
+  if (res.ok) {
+    console.log('Delete successful with status:', res.status);
+    return;
+  }
+  
+  // Si hay error, intentar parsear el JSON del error
+  console.log('Delete response status:', res.status);
+  console.log('Delete response ok:', res.ok);
+  
+  try {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || `Error ${res.status}: No s'ha pogut eliminar el post`);
+  } catch (jsonError) {
+    // Si no se puede parsear el JSON, lanzar error genérico
+    throw new Error(`Error ${res.status}: No s'ha pogut eliminar el post`);
+  }
+}
+
+
 // -------------------- COMMENTS --------------------
 
 export async function fetchPostComments(postId: number, apiKey?: string): Promise<Comment[]> {
