@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { upvotePost, downvotePost, toggleSavePost, deletePost } from '../services/api';
+import { upvotePost, downvotePost, toggleSavePost, deletePost, getCommunityIdByName } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
-import type { Post } from '../services/api';
+import type { Post, PostCommunity } from '../services/api';
 
 interface Props {
   post: Post;
@@ -21,7 +21,6 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
   const [isVoting, setIsVoting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Usar l'estat global en lloc de l'estat local
   const isSaved = isPostSaved(post.id);
 
   const isOwner = user && post.author &&
@@ -57,6 +56,7 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
       setVotes(result.votes);
       setUserVote(userVote === 'up' ? null : 'up');
     } catch (error) {
+      console.error('Error voting:', error);
     } finally {
       setIsVoting(false);
     }
@@ -74,6 +74,7 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
       setVotes(result.votes);
       setUserVote(userVote === 'down' ? null : 'down');
     } catch (error) {
+      console.error('Error voting:', error);
     } finally {
       setIsVoting(false);
     }
@@ -87,10 +88,9 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
 
     try {
       const result = await toggleSavePost(user.apiKey, post.id);
-
       togglePostSaved(post.id, result.saved);
-
     } catch (error) {
+      console.error('Error saving post:', error);
     }
   };
 
@@ -139,6 +139,40 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
     e.stopPropagation();
     if (post.author_id) {
       navigate(`/users/${post.author_id}`);
+    }
+  };
+
+  const handleCommunityClick = async (e: React.MouseEvent, community: string | PostCommunity) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Si es un objeto con ID, navegar directamente
+    if (typeof community === 'object' && community.id) {
+      navigate(`/comunitats/${community.id}`);
+      return;
+    }
+
+    // Si es un string o un objeto sin ID, buscar el ID
+    const communityName = typeof community === 'string' ? community : community.name;
+
+    if (!user?.apiKey) {
+      // Si no hay usuario autenticado, no podemos buscar el ID
+      console.warn('Usuario no autenticado, no se puede buscar ID de comunidad');
+      return;
+    }
+
+    try {
+      // Buscar el ID de la comunidad por nombre
+      const communityId = await getCommunityIdByName(user.apiKey, communityName);
+
+      if (communityId) {
+        navigate(`/comunitats/${communityId}`);
+      } else {
+        console.warn(`No se encontró la comunidad: ${communityName}`);
+        // Opcionalmente, mostrar un mensaje al usuario
+      }
+    } catch (error) {
+      console.error('Error navegando a la comunidad:', error);
     }
   };
 
@@ -230,20 +264,29 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
                   </div>
                 </div>
 
-                {/* Comunitats */}
+                {/* Comunitats - MEJORADO CON MEJOR MANEJO */}
                 {post.communities && post.communities.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {post.communities.map((community, idx) => (
-                          <span
-                              key={typeof community === 'object' ? community.id : idx}
-                              className="inline-flex items-center gap-1 text-xs bg-gradient-to-r from-roseTheme-light to-rose-100 text-roseTheme-dark px-3 py-1 rounded-full font-semibold shadow-sm"
-                          >
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                      </svg>
-                      c/{typeof community === 'object' ? community.name : community}
-                    </span>
-                      ))}
+                      {post.communities.map((community, idx) => {
+                        const isObject = typeof community === 'object';
+                        const communityId = isObject ? community.id : 0;
+                        const communityName = isObject ? community.name : community;
+                        const hasId = isObject && communityId > 0;
+
+                        return (
+                            <button
+                                key={hasId ? communityId : `comm-${idx}`}
+                                onClick={(e) => handleCommunityClick(e, community)}
+                                className="inline-flex items-center gap-1 text-xs bg-gradient-to-r from-roseTheme-light to-rose-100 text-roseTheme-dark px-3 py-1 rounded-full font-semibold shadow-sm hover:from-rose-200 hover:to-rose-300 hover:scale-105 cursor-pointer transition-all duration-200"
+                                title={`Veure c/${communityName}`}
+                            >
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                              </svg>
+                              c/{communityName}
+                            </button>
+                        );
+                      })}
                     </div>
                 )}
 

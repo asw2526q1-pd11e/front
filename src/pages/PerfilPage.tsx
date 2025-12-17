@@ -12,7 +12,7 @@ import PostCard from '../components/PostCard';
 import CommentCard from '../components/CommentCard';
 
 const PerfilPage = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth(); // Eliminado logout
   const { togglePostSaved, refreshSavedPosts } = useSavedPosts();
   const { refreshSavedComments } = useSavedComments();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -370,11 +370,11 @@ const PerfilPage = () => {
               </div>
             </div>
 
-            {/* Accions */}
-            <div className="flex gap-3 flex-wrap">
+            {/* Accions - SIN BOTÓN DE CERRAR SESIÓN */}
+            <div className="grid grid-cols-2 gap-3">
               <button
                   onClick={handleShowMyPosts}
-                  className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                  className={`font-semibold py-3 rounded-xl transition border ${
                       showMyPosts
                           ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
                           : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
@@ -384,7 +384,7 @@ const PerfilPage = () => {
               </button>
               <button
                   onClick={handleShowMyComments}
-                  className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                  className={`font-semibold py-3 rounded-xl transition border ${
                       showMyComments
                           ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
                           : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
@@ -394,7 +394,7 @@ const PerfilPage = () => {
               </button>
               <button
                   onClick={handleShowSaved}
-                  className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                  className={`font-semibold py-3 rounded-xl transition border ${
                       showSaved
                           ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
                           : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
@@ -404,19 +404,13 @@ const PerfilPage = () => {
               </button>
               <button
                   onClick={handleShowSavedComments}
-                  className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                  className={`font-semibold py-3 rounded-xl transition border ${
                       showSavedComments
                           ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
                           : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
                   }`}
               >
                 💾 Comentaris guardats
-              </button>
-              <button
-                  onClick={logout}
-                  className="flex-1 bg-red-50 text-red-600 font-semibold py-3 rounded-xl hover:bg-red-100 transition border border-red-200"
-              >
-                🚪 Tancar sessió
               </button>
             </div>
           </div>
