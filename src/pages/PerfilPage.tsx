@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
+import { useSavedComments } from '../context/SavedCommentContext';
 import { fetchUserProfile, fetchUserPosts, fetchUserComments,
-  fetchSavedPosts, fetchSubscribedCommunities,
+  fetchSavedPosts, fetchSavedComments, fetchSubscribedCommunities,
   toggleSavePost as apiToggleSavePost,
   type UserProfile, type Post, type Comment, type Community } from '../services/api';
 import EditProfileModal from '../components/EditPerfilPage';
@@ -13,6 +14,7 @@ import CommentCard from '../components/CommentCard';
 const PerfilPage = () => {
   const { user, logout } = useAuth();
   const { togglePostSaved, refreshSavedPosts } = useSavedPosts();
+  const { refreshSavedComments } = useSavedComments();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,9 @@ const PerfilPage = () => {
   const [showSaved, setShowSaved] = useState(false);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
+  const [showSavedComments, setShowSavedComments] = useState(false);
+  const [savedComments, setSavedComments] = useState<Comment[]>([]);
+  const [loadingSavedComments, setLoadingSavedComments] = useState(false);
   const [subscribedCommunities, setSubscribedCommunities] = useState<Community[]>([]);
 
   useEffect(() => {
@@ -133,11 +138,45 @@ const PerfilPage = () => {
     }
   }, [showSaved, user?.apiKey]);
 
+  const loadSavedComments = async () => {
+    if (!user?.apiKey) return;
+
+    setLoadingSavedComments(true);
+    try {
+      // Primer refrescar l'estat global
+      await refreshSavedComments();
+
+      // Després carregar els comentaris guardats per mostrar-los
+      const comments = await fetchSavedComments(user.apiKey);
+      setSavedComments(comments);
+    } catch (err) {
+      setSavedComments([]);
+    } finally {
+      setLoadingSavedComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showSavedComments && user?.apiKey) {
+      loadSavedComments();
+    }
+  }, [showSavedComments, user?.apiKey]);
+
   const handleShowSaved = () => {
     setShowSaved(!showSaved);
     if (!showSaved) {
       setShowMyPosts(false);
       setShowMyComments(false);
+      setShowSavedComments(false);
+    }
+  };
+
+  const handleShowSavedComments = () => {
+    setShowSavedComments(!showSavedComments);
+    if (!showSavedComments) {
+      setShowMyPosts(false);
+      setShowMyComments(false);
+      setShowSaved(false);
     }
   };
 
@@ -166,6 +205,7 @@ const PerfilPage = () => {
     if (!showMyPosts) {
       setShowMyComments(false);
       setShowSaved(false);
+      setShowSavedComments(false);
     }
   };
 
@@ -174,6 +214,7 @@ const PerfilPage = () => {
     if (!showMyComments) {
       setShowMyPosts(false);
       setShowSaved(false);
+      setShowSavedComments(false);
     }
   };
 
@@ -189,6 +230,17 @@ const PerfilPage = () => {
   // Handler per eliminar un comentari
   const handleCommentDeleted = (commentId: number) => {
     setUserComments(prevComments =>
+        prevComments.filter(c => c.id !== commentId)
+    );
+    setSavedComments(prevComments =>
+        prevComments.filter(c => c.id !== commentId)
+    );
+  };
+
+  // Handler per quan es desguarda un comentari
+  const handleCommentUnsaved = (commentId: number) => {
+    // Eliminar de la llista de comentaris guardats
+    setSavedComments(prevComments =>
         prevComments.filter(c => c.id !== commentId)
     );
   };
@@ -319,7 +371,7 @@ const PerfilPage = () => {
             </div>
 
             {/* Accions */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <button
                   onClick={handleShowMyPosts}
                   className={`flex-1 font-semibold py-3 rounded-xl transition border ${
@@ -349,6 +401,16 @@ const PerfilPage = () => {
                   }`}
               >
                 ⭐ Posts guardats
+              </button>
+              <button
+                  onClick={handleShowSavedComments}
+                  className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                      showSavedComments
+                          ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
+                          : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                  }`}
+              >
+                💾 Comentaris guardats
               </button>
               <button
                   onClick={logout}
@@ -509,6 +571,50 @@ const PerfilPage = () => {
                               onPostEdited={(post) => {
                                 setEditingPost(post);
                               }}
+                          />
+                      ))}
+                    </div>
+                )}
+              </div>
+            </div>
+        )}
+
+        {/* Comentaris guardats */}
+        {showSavedComments && (
+            <div className="mt-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light overflow-hidden">
+                <div className="p-6 border-b border-roseTheme-light">
+                  <h2 className="text-2xl font-bold text-roseTheme-dark flex items-center gap-2">
+                    💾 Comentaris guardats
+                    {loadingSavedComments && (
+                        <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                  </h2>
+                </div>
+
+                {loadingSavedComments ? (
+                    <div className="flex justify-center py-12">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 border-4 border-roseTheme-light border-t-roseTheme-dark rounded-full animate-spin"></div>
+                        <p className="text-roseTheme-dark">Carregant...</p>
+                      </div>
+                    </div>
+                ) : savedComments.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">💾</div>
+                      <p className="text-roseTheme-dark/60 text-lg mb-2">No tens cap comentari guardat</p>
+                      <p className="text-roseTheme-dark/40 text-sm">Guarda comentaris per veure'ls aquí</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4 p-6">
+                      {savedComments.map(comment => (
+                          <CommentCard
+                              key={comment.id}
+                              comment={comment}
+                              depth={0}
+                              onCommentDeleted={handleCommentDeleted}
+                              onCommentUpdated={handleCommentUpdated}
+                              onCommentUnsaved={handleCommentUnsaved}
                           />
                       ))}
                     </div>
