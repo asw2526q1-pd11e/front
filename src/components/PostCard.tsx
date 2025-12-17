@@ -197,7 +197,17 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
               <div className="flex-1 min-w-0">
                 {/* Header amb avatar i info */}
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold shadow-md">
+                  <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (post.author_id) {
+                          navigate(`/users/${post.author_id}`);
+                        }
+                      }}
+                      className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold shadow-md ${
+                          post.author_id ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                      } transition`}
+                  >
                     {post.author ? post.author[0].toUpperCase() : '?'}
                   </div>
 
