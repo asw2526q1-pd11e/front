@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { subscribeToCommunity, unsubscribeFromCommunity } from '../services/api';
 
 interface Community {
   id: number;
@@ -9,20 +10,57 @@ interface Community {
   subs_count: number;
   posts_count: number;
   comments_count: number;
+  is_subscribed?: boolean;
 }
 
 interface Props {
   community: Community;
+  apiKey?: string;
+  onSubscriptionChanged?: () => void;
 }
 
-const CommunityCard: React.FC<Props> = ({ community }) => {
-  const [isSubscribed, setIsSubscribed] = useState(false);
+const CommunityCard: React.FC<Props> = ({ community, apiKey, onSubscriptionChanged }) => {
+  const [isSubscribed, setIsSubscribed] = useState(community.is_subscribed || false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
-  const handleSubscribe = (e: React.MouseEvent) => {
+  // Sync local state with community data when it changes
+  useEffect(() => {
+    setIsSubscribed(community.is_subscribed || false);
+  }, [community.is_subscribed]);
+
+  const handleSubscribe = async (e: React.MouseEvent) => {
     e.preventDefault(); // Evita que el Link es dispari
     e.stopPropagation(); // Evita la propagació de l'event
-    setIsSubscribed(!isSubscribed);
-    // Aquí pots afegir la lògica per fer la petició al backend
+    
+    if (!apiKey) return;
+    
+    setIsSubscribing(true);
+    try {
+      if (isSubscribed) {
+        await unsubscribeFromCommunity(apiKey, community.id);
+        setIsSubscribed(false);
+      } else {
+        await subscribeToCommunity(apiKey, community.id);
+        setIsSubscribed(true);
+      }
+      // Notify parent component to refresh data
+      onSubscriptionChanged?.();
+    } catch (error: any) {
+      console.error('Error toggling subscription:', error);
+      
+      // Handle specific error cases
+      if (error.message?.includes('Ja estàs subscrit')) {
+        // User is already subscribed, update local state
+        setIsSubscribed(true);
+        onSubscriptionChanged?.();
+      } else if (error.message?.includes('No estàs subscrit')) {
+        // User is not subscribed, update local state
+        setIsSubscribed(false);
+        onSubscriptionChanged?.();
+      }
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   return (
@@ -103,25 +141,33 @@ const CommunityCard: React.FC<Props> = ({ community }) => {
           </div>
 
           {/* Botó de subscripció */}
-          <button
-            onClick={handleSubscribe}
-            className={`flex-shrink-0 px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
-              isSubscribed
-                ? 'bg-roseTheme-light text-roseTheme-dark border-2 border-roseTheme-accent hover:bg-roseTheme-accent'
-                : 'bg-gradient-to-r from-roseTheme-dark to-roseTheme text-white hover:shadow-lg hover:scale-105'
-            }`}
-          >
-            {isSubscribed ? (
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Subscrit
-              </span>
-            ) : (
-              '+ Unir-se'
-            )}
-          </button>
+          {apiKey && (
+            <button
+              onClick={handleSubscribe}
+              disabled={isSubscribing}
+              className={`flex-shrink-0 px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isSubscribed
+                  ? 'bg-roseTheme-light text-roseTheme-dark border-2 border-roseTheme-accent hover:bg-roseTheme-accent'
+                  : 'bg-gradient-to-r from-roseTheme-dark to-roseTheme text-white hover:shadow-lg hover:scale-105'
+              }`}
+            >
+              {isSubscribing ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                  {isSubscribed ? 'Dessubscrivint...' : 'Subscrivint...'}
+                </span>
+              ) : isSubscribed ? (
+                <span className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Subscrit
+                </span>
+              ) : (
+                '+ Unir-se'
+              )}
+            </button>
+          )}
         </div>
       </div>
     </Link>

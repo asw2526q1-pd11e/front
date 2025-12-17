@@ -43,6 +43,7 @@ export interface Community {
   subs_count: number;
   posts_count: number;
   comments_count: number;
+  is_subscribed?: boolean;
 }
 
 export interface UserProfile {
@@ -479,7 +480,6 @@ export async function toggleSavePost(apiKey: string, postId: number): Promise<{ 
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
     throw new Error("Failed to toggle save post");
   }
 
@@ -508,7 +508,17 @@ export async function fetchSubscribedCommunities(apiKey: string): Promise<Commun
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch subscribed communities");
-  return res.json();
+  
+  const data = await res.json();
+  
+  // Handle the same response format as fetchCommunities
+  if (Array.isArray(data)) {
+    return data;
+  } else if (data && Array.isArray(data.communities)) {
+    return data.communities;
+  } else {
+    return [];
+  }
 }
 
 export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscribed' | 'local' = 'all'): Promise<Community[]> {
@@ -613,6 +623,82 @@ export async function downvoteComment(apiKey: string, commentId: number): Promis
   if (!res.ok) throw new Error("Failed to downvote comment");
   return res.json();
 }
+
+// -------------------- COMMUNITY SUBSCRIPTION --------------------
+
+export async function subscribeToCommunity(apiKey: string, communityId: number): Promise<{ message: string }> {
+  const url = `${COMMUNITIES_API_URL}/api/communities/${communityId}/subscribe/`;
+  console.log('Subscribing to community, URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    console.log('Subscribe response status:', res.status, res.statusText);
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut subscriure`);
+  }
+
+  return res.json();
+}
+
+export async function unsubscribeFromCommunity(apiKey: string, communityId: number): Promise<{ message: string }> {
+  const url = `${COMMUNITIES_API_URL}/api/communities/${communityId}/unsubscribe/`;
+  console.log('Unsubscribing from community, URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    console.log('Unsubscribe response status:', res.status, res.statusText);
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut donar de baixa`);
+  }
+
+  return res.json();
+}
+
+// Alternative subscription functions with different URL patterns
+export async function subscribeToCommunityAlt(apiKey: string, communityId: number): Promise<{ message: string }> {
+  // Try pattern that matches fetchCommunityDetail
+  const url = `${COMMUNITIES_API_URL}/communities/${communityId}/subscribe/`;
+  console.log('Alternative subscribe URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut subscriure`);
+  }
+
+  return res.json();
+}
+
+export async function unsubscribeFromCommunityAlt(apiKey: string, communityId: number): Promise<{ message: string }> {
+  // Try pattern that matches fetchCommunityDetail
+  const url = `${COMMUNITIES_API_URL}/communities/${communityId}/unsubscribe/`;
+  console.log('Alternative unsubscribe URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut donar de baixa`);
+  }
+
+  return res.json();
+}
+
 // -------------------- OTHER USER PROFILE --------------------
 
 export async function fetchOtherUserProfile(apiKey: string, userId: number): Promise<UserProfile> {
@@ -684,3 +770,37 @@ export async function fetchOtherUserComments(apiKey: string, userId: number): Pr
 
   return mappedComments;
 }
+
+export async function checkCommunitySubscription(apiKey: string, communityId: number): Promise<{ is_subscribed: boolean }> {
+  const res = await fetch(`/api/communities/${communityId}/subscription-status/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    // If endpoint doesn't exist, we'll determine from other API calls
+    return { is_subscribed: false };
+  }
+
+  return res.json();
+}
+
+// -------------------- UTILITY FUNCTIONS --------------------
+
+export async function isUserSubscribedToCommunity(apiKey: string, communityId: number): Promise<boolean> {
+  try {
+    const subscribedCommunities = await fetchSubscribedCommunities(apiKey);
+    
+    // Ensure it's an array before using array methods
+    if (!Array.isArray(subscribedCommunities)) {
+      console.error('fetchSubscribedCommunities did not return an array:', subscribedCommunities);
+      return false;
+    }
+    
+    return subscribedCommunities.some(community => community.id === communityId);
+  } catch (error) {
+    console.error('Error checking subscription status:', error);
+    return false;
+  }
+}
+
+// -------------------- OTHER USER PROFILE --------------------
