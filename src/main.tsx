@@ -12,6 +12,7 @@ import ComunitatsPage from "./pages/ComunitatsPage";
 import CommunityDetail from "./pages/CommunityDetail";
 import PerfilPage from "./pages/PerfilPage";
 import LoginPage from "./pages/LoginPage";
+import UserProfilePage from './pages/UserProfilePage';
 
 import "./index.css";
 
@@ -49,6 +50,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 <Route path="comunitats" element={<ComunitatsPage />} />
                 <Route path="comunitats/:id" element={<CommunityDetail />} />
                 <Route path="perfil" element={<PerfilPage />} />
+                <Route path="/users/:userId" element={<UserProfilePage />} />
               </Route>
 
               {/* Redirigir qualsevol altra ruta a login */}
