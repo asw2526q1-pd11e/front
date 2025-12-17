@@ -4,6 +4,7 @@ import { fetchPostDetail, fetchPostCommentsTree, toggleSavePost as apiToggleSave
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
 import EditPostModal from '../components/EditPostModal';
+import CreateCommentModal from '../components/CreateCommentModal';
 
 interface Post {
     id: number;
@@ -47,6 +48,8 @@ export default function PostDetailPage() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [commentOrder, setCommentOrder] = useState<CommentOrderType>('new');
+    const [showCommentModal, setShowCommentModal] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<{ id: number; author: string } | null>(null);
 
     useEffect(() => {
         if (!id) {
@@ -148,6 +151,24 @@ export default function PostDetailPage() {
         setShowEditModal(false);
     };
 
+    const handleCommentCreated = async () => {
+        if (!id) return;
+
+        try {
+            const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
+            setComments(commentsData);
+            setShowCommentModal(false);
+            setReplyingTo(null);
+        } catch (err) {
+            console.error("Error reloading comments:", err);
+        }
+    };
+
+    const handleReply = (commentId: number, author: string) => {
+        setReplyingTo({ id: commentId, author });
+        setShowCommentModal(true);
+    };
+
     const isOwner = user && post?.author &&
         (user as any).username?.toLowerCase() === post.author.toLowerCase();
 
@@ -183,6 +204,12 @@ export default function PostDetailPage() {
                     {comment.content}
                 </p>
 
+                {comment.image && (
+                    <div className="mb-3 rounded-lg overflow-hidden">
+                        <img src={comment.image} alt="Comment" className="max-w-full" />
+                    </div>
+                )}
+
                 <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1 text-roseTheme-dark/60">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,6 +224,17 @@ export default function PostDetailPage() {
                         <span className="text-xs text-roseTheme-dark/50">
                             {comment.replies.length} {comment.replies.length === 1 ? 'resposta' : 'respostes'}
                         </span>
+                    )}
+                    {user && (
+                        <button
+                            onClick={() => handleReply(comment.id, comment.author || 'Anònim')}
+                            className="ml-auto text-xs font-semibold text-roseTheme hover:text-roseTheme-dark transition flex items-center gap-1"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Respondre
+                        </button>
                     )}
                 </div>
             </div>
@@ -405,23 +443,41 @@ export default function PostDetailPage() {
                             Comentaris ({comments.length})
                         </h2>
 
-                        {/* Comment order selector */}
-                        {comments.length > 0 && (
-                            <div className="relative">
-                                <select
-                                    value={commentOrder}
-                                    onChange={(e) => setCommentOrder(e.target.value as CommentOrderType)}
-                                    className="appearance-none bg-white border-2 border-roseTheme-light rounded-lg px-4 py-2 pr-10 text-sm font-semibold text-roseTheme-dark hover:border-roseTheme focus:outline-none focus:border-roseTheme transition cursor-pointer"
+                        <div className="flex items-center gap-3">
+                            {/* Add comment button */}
+                            {user && (
+                                <button
+                                    onClick={() => {
+                                        setReplyingTo(null);
+                                        setShowCommentModal(true);
+                                    }}
+                                    className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-rose-600 hover:via-pink-600 hover:to-rose-700 transition shadow-md flex items-center gap-2"
                                 >
-                                    <option value="new">Més recents</option>
-                                    <option value="old">Més antics</option>
-                                    <option value="top">Més votats</option>
-                                </select>
-                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-roseTheme-dark pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
-                        )}
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Afegir comentari
+                                </button>
+                            )}
+
+                            {/* Comment order selector */}
+                            {comments.length > 0 && (
+                                <div className="relative">
+                                    <select
+                                        value={commentOrder}
+                                        onChange={(e) => setCommentOrder(e.target.value as CommentOrderType)}
+                                        className="appearance-none bg-white border-2 border-roseTheme-light rounded-lg px-4 py-2 pr-10 text-sm font-semibold text-roseTheme-dark hover:border-roseTheme focus:outline-none focus:border-roseTheme transition cursor-pointer"
+                                    >
+                                        <option value="new">Més recents</option>
+                                        <option value="old">Més antics</option>
+                                        <option value="top">Més votats</option>
+                                    </select>
+                                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-roseTheme-dark pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {comments.length === 0 ? (
@@ -485,6 +541,21 @@ export default function PostDetailPage() {
                     apiKey={user.apiKey}
                     onClose={() => setShowEditModal(false)}
                     onPostUpdated={handlePostUpdated}
+                />
+            )}
+
+            {/* Comment Modal */}
+            {showCommentModal && user?.apiKey && post && (
+                <CreateCommentModal
+                    postId={post.id}
+                    parentId={replyingTo?.id}
+                    parentAuthor={replyingTo?.author}
+                    apiKey={user.apiKey}
+                    onClose={() => {
+                        setShowCommentModal(false);
+                        setReplyingTo(null);
+                    }}
+                    onCommentCreated={handleCommentCreated}
                 />
             )}
         </div>

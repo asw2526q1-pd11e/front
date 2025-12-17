@@ -84,8 +84,6 @@ export async function fetchPosts(
   });
   if (!res.ok) throw new Error("Failed to fetch posts");
   const posts = await res.json();
-  console.log('📥 fetchPosts - primer post:', posts[0]);
-  console.log('📥 fetchPosts - is_saved del primer post:', posts[0]?.is_saved);
   return posts;
 }
 
@@ -235,15 +233,10 @@ export async function deletePost(apiKey: string, postId: number): Promise<void> 
     },
   });
 
-  // Los códigos 200-299 son exitosos (incluyendo 204 No Content)
   if (res.ok) {
-    console.log('Delete successful with status:', res.status);
     return;
   }
 
-  // Si hay error, intentar parsear el JSON del error
-  console.log('Delete response status:', res.status);
-  console.log('Delete response ok:', res.ok);
 
   try {
     const errorData = await res.json();
@@ -268,6 +261,43 @@ export async function fetchPostCommentsTree(
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch comments tree");
+  return res.json();
+}
+
+export async function createComment(
+    apiKey: string,
+    postId: number,
+    data: {
+      content: string;
+      parent_id?: number;
+      image?: File | null;
+    }
+): Promise<Comment> {
+  const formData = new FormData();
+
+  formData.append('content', data.content);
+
+  if (data.parent_id) {
+    formData.append('parent_id', data.parent_id.toString());
+  }
+
+  if (data.image) {
+    formData.append('image', data.image);
+  }
+
+  const res = await fetch(`${API_URL}/posts/${postId}/comments/create/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut crear el comentari`);
+  }
+
   return res.json();
 }
 
@@ -341,14 +371,12 @@ export async function updateUserProfile(
 
 // -------------------- USER POSTS --------------------
 export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
-  console.log('🔍 fetchUserPosts - cridant endpoint');
   const res = await fetch(`${ACCOUNTS_API_URL}/users/me/posts/`, {
     headers: getAuthHeaders(apiKey)
   });
 
   if (!res.ok) {
     if (res.status === 404) {
-      console.log('⚠️ fetchUserPosts - 404, retornant array buit');
       return [];
     }
     throw new Error("Failed to fetch user posts");
@@ -356,7 +384,6 @@ export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
 
   const posts = await res.json();
 
-  // Afegim is_saved i renombrem image_url → image
   const mappedPosts = posts.map((post: any) => ({
     id: post.id,
     title: post.title,
@@ -371,23 +398,17 @@ export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
     is_saved: post.is_saved ?? false,
   }));
 
-  console.log('📥 fetchUserPosts - posts rebuts:', mappedPosts.length);
-  console.log('📥 fetchUserPosts - primer post complet:', mappedPosts[0]);
-  console.log('📥 fetchUserPosts - is_saved del primer post:', mappedPosts[0]?.is_saved);
-
   return mappedPosts;
 }
 
 // -------------------- SAVED POSTS --------------------
 export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
-  console.log('🔍 fetchSavedPosts - cridant endpoint');
   const res = await fetch(`${ACCOUNTS_API_URL}/users/me/saved-posts/`, {
     headers: getAuthHeaders(apiKey)
   });
 
   if (!res.ok) {
     if (res.status === 404) {
-      console.log('⚠️ fetchSavedPosts - 404, retornant array buit');
       return [];
     }
     throw new Error("Failed to fetch saved posts");
@@ -410,10 +431,6 @@ export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
     is_saved: true, // sempre true perquè són desats
   }));
 
-  console.log('⭐ fetchSavedPosts - posts rebuts:', mappedPosts.length);
-  console.log('⭐ fetchSavedPosts - primer post complet:', mappedPosts[0]);
-  console.log('⭐ fetchSavedPosts - is_saved del primer post:', mappedPosts[0]?.is_saved);
-
   return mappedPosts;
 }
 
@@ -421,20 +438,17 @@ export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
 // -------------------- USER COMMENTS --------------------
 
 export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
-  console.log('🔍 fetchUserComments - cridant endpoint');
   const res = await fetch(`${ACCOUNTS_API_URL}/users/me/comments/`, {
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) {
     if (res.status === 404) {
-      console.log('⚠️ fetchUserComments - 404, retornant array buit');
       return [];
     }
     throw new Error("Failed to fetch user comments");
   }
   const comments = await res.json();
 
-  // Mapegem els camps si és necessari (assegurant consistència)
   const mappedComments = comments.map((comment: any) => ({
     id: comment.id,
     post: comment.post,
@@ -448,51 +462,37 @@ export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
     is_saved: comment.is_saved ?? false,
   }));
 
-  console.log('💬 fetchUserComments - comentaris rebuts:', mappedComments.length);
-  console.log('💬 fetchUserComments - primer comentari:', mappedComments[0]);
   return mappedComments;
 }
 
 // -------------------- SAVED POSTS --------------------
 
 export async function toggleSavePost(apiKey: string, postId: number): Promise<{ saved: boolean }> {
-  console.log(`🔄 toggleSavePost - postId=${postId}`);
-  console.log(`🔄 toggleSavePost - URL completa: ${ACCOUNTS_API_URL}/api/posts/${postId}/toggle_saved/`);
-
   const res = await fetch(`${ACCOUNTS_API_URL}/api/posts/${postId}/toggle_saved/`, {
     method: 'POST',
     headers: getAuthHeaders(apiKey)
   });
 
-  console.log(`📡 toggleSavePost - status: ${res.status}`);
-  console.log(`📡 toggleSavePost - ok: ${res.ok}`);
-
   if (!res.ok) {
-    console.error(`❌ toggleSavePost - Error ${res.status}`);
     const errorText = await res.text();
-    console.error(`❌ toggleSavePost - Error body:`, errorText);
     throw new Error("Failed to toggle save post");
   }
 
   const result = await res.json();
-  console.log(`✅ toggleSavePost - resposta del backend:`, result);
   return result;
 }
 
 // -------------------- SAVED COMMENTS --------------------
 
 export async function toggleSaveComment(apiKey: string, commentId: number): Promise<{ saved: boolean }> {
-  console.log(`🔄 toggleSaveComment - commentId=${commentId}`);
   const res = await fetch(`${ACCOUNTS_API_URL}/api/comments/${commentId}/toggle_saved/`, {
     method: 'POST',
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) {
-    console.error(`❌ toggleSaveComment - Error ${res.status}`);
     throw new Error("Failed to toggle save comment");
   }
   const result = await res.json();
-  console.log(`✅ toggleSaveComment - resposta del backend:`, result);
   return result;
 }
 
@@ -522,7 +522,6 @@ export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscrib
 
     const data = await res.json();
 
-    // El backend pot retornar directament un array o un objecte amb propietat 'communities'
     if (Array.isArray(data)) {
       return data;
     } else if (data && Array.isArray(data.communities)) {
@@ -531,7 +530,6 @@ export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscrib
       return [];
     }
   } catch (error) {
-    console.error('Error en fetchCommunities:', error);
     throw error;
   }
 }
