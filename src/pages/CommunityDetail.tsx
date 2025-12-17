@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchCommunityDetail, fetchCommunityPosts, type Community, type Post } from '../services/api';
+import { fetchCommunityDetail, fetchCommunityPosts, subscribeToCommunity, unsubscribeFromCommunity, isUserSubscribedToCommunity, type Community, type Post } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import PostCard from '../components/PostCard';
 import EditPostModal from '../components/EditPostModal';
@@ -13,15 +13,45 @@ const CommunityDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isSubscribing, setIsSubscribing] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     loadCommunityData();
   }, [id, user?.apiKey]);
 
-  const handleSubscribe = () => {
-    setIsSubscribed(!isSubscribed);
-    // TODO: Implementar crida API per subscriure's
+  const handleSubscribe = async () => {
+    if (!user?.apiKey || !community) return;
+
+    setIsSubscribing(true);
+    try {
+      if (isSubscribed) {
+        await unsubscribeFromCommunity(user.apiKey, community.id);
+        setIsSubscribed(false);
+      } else {
+        await subscribeToCommunity(user.apiKey, community.id);
+        setIsSubscribed(true);
+      }
+      // Reload community data to get updated stats
+      loadCommunityData();
+    } catch (error: any) {
+      console.error('Error toggling subscription:', error);
+      
+      // Handle specific error cases
+      if (error.message?.includes('Ja estàs subscrit')) {
+        // User is already subscribed, update local state
+        setIsSubscribed(true);
+        loadCommunityData();
+      } else if (error.message?.includes('No estàs subscrit')) {
+        // User is not subscribed, update local state
+        setIsSubscribed(false);
+        loadCommunityData();
+      } else {
+        setError(error.message || 'Error en la subscripció');
+      }
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   const handlePostUpdated = () => {
@@ -43,6 +73,14 @@ const CommunityDetail = () => {
 
       setCommunity(communityData);
       setPosts(postsData);
+      
+      // Check subscription status
+      if (user?.apiKey) {
+        const subscriptionStatus = await isUserSubscribedToCommunity(user.apiKey, Number(id));
+        setIsSubscribed(subscriptionStatus);
+      } else {
+        setIsSubscribed(false);
+      }
     } catch (err: any) {
       console.error('Error loading community:', err);
       setError(err.message || 'No s\'ha pogut carregar la comunitat');
@@ -132,13 +170,19 @@ const CommunityDetail = () => {
                 {user && (
                   <button
                     onClick={handleSubscribe}
-                    className={`px-8 py-3 rounded-xl font-bold transition-all duration-200 shadow-lg ${
+                    disabled={isSubscribing}
+                    className={`px-8 py-3 rounded-xl font-bold transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
                       isSubscribed
                         ? 'bg-roseTheme-light text-roseTheme-dark border-2 border-roseTheme-accent hover:bg-roseTheme-accent'
                         : 'bg-gradient-to-r from-roseTheme-dark to-roseTheme text-white hover:shadow-xl hover:scale-105'
                     }`}
                   >
-                    {isSubscribed ? (
+                    {isSubscribing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                        {isSubscribed ? 'Dessubscrivint...' : 'Subscrivint...'}
+                      </span>
+                    ) : isSubscribed ? (
                       <span className="flex items-center gap-2">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
