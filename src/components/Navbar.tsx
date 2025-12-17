@@ -17,6 +17,7 @@ const Navbar: React.FC = () => {
     navigate('/login');
   };
 
+
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-roseTheme-light shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -69,6 +70,16 @@ const Navbar: React.FC = () => {
               👤 Perfil
             </Link>
           </div>
+
+          {/* Search Button */}
+          <button
+            onClick={() => navigate('/search')}
+            className="p-2 rounded-lg hover:bg-roseTheme-light transition"
+            title="Buscar"
+          >
+            🔍
+          </button>
+
 
           {/* User Menu - Dreta */}
           {user && (

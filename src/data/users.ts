@@ -31,9 +31,9 @@ export const USERS: User[] = [
   },
   {
     id: '4',
-    name: 'Usuari 4',
-    email: 'user4@example.com',
-    apiKey: 'API_KEY_USUARI_4', // Substitueix amb l'API key real
+    name: 'Ada',
+    email: 'ada@example.com',
+    apiKey: '9116c5c7-c9d6-4aa9-95b2-b2d274f2ac37', // Substitueix amb l'API key real
     avatar: '👩‍🔬'
   }
 ];
