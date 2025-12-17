@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { fetchOtherUserProfile, fetchOtherUserPosts, fetchOtherUserComments,
     type UserProfile, type Post, type Comment } from '../services/api';
 import PostCard from '../components/PostCard';
+import CommentCard from '../components/CommentCard';
 
 const UserProfilePage = () => {
     const { userId } = useParams<{ userId: string }>();
@@ -141,7 +142,21 @@ const UserProfilePage = () => {
             }
 
             const comments = await res.json();
-            setSavedComments(comments);
+            const mappedComments = comments.map((comment: any) => ({
+                id: comment.id,
+                post: comment.post,
+                parent: comment.parent,
+                content: comment.content,
+                author: comment.author,
+                author_id: comment.author_id,
+                published_date: comment.published_date,
+                votes: comment.votes,
+                url: comment.url,
+                image: comment.image,
+                is_saved: true,
+                user_vote: comment.user_vote,
+            }));
+            setSavedComments(mappedComments);
         } catch (err) {
             setSavedComments([]);
         } finally {
@@ -207,6 +222,34 @@ const UserProfilePage = () => {
             setShowMyComments(false);
             setShowSavedPosts(false);
         }
+    };
+
+    const handleCommentUpdated = (updatedComment: Comment) => {
+        setUserComments(prevComments =>
+            prevComments.map(c =>
+                c.id === updatedComment.id ? updatedComment : c
+            )
+        );
+        setSavedComments(prevComments =>
+            prevComments.map(c =>
+                c.id === updatedComment.id ? updatedComment : c
+            )
+        );
+    };
+
+    const handleCommentDeleted = (commentId: number) => {
+        setUserComments(prevComments =>
+            prevComments.filter(c => c.id !== commentId)
+        );
+        setSavedComments(prevComments =>
+            prevComments.filter(c => c.id !== commentId)
+        );
+    };
+
+    const handleCommentUnsaved = (commentId: number) => {
+        setSavedComments(prevComments =>
+            prevComments.filter(c => c.id !== commentId)
+        );
     };
 
     if (loading) {
@@ -310,7 +353,7 @@ const UserProfilePage = () => {
                     </div>
 
                     {/* Accions */}
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
                         <button
                             onClick={handleShowMyPosts}
                             className={`flex-1 font-semibold py-3 rounded-xl transition border ${
@@ -401,13 +444,15 @@ const UserProfilePage = () => {
             {/* Comentaris */}
             {showMyComments && (
                 <div className="mt-6">
-                    <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light p-6">
-                        <h2 className="text-2xl font-bold text-roseTheme-dark mb-4 flex items-center gap-2">
-                            💬 Comentaris de {profile.nombre}
-                            {loadingComments && (
-                                <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
-                            )}
-                        </h2>
+                    <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light overflow-hidden">
+                        <div className="p-6 border-b border-roseTheme-light">
+                            <h2 className="text-2xl font-bold text-roseTheme-dark flex items-center gap-2">
+                                💬 Comentaris de {profile.nombre}
+                                {loadingComments && (
+                                    <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                                )}
+                            </h2>
+                        </div>
 
                         {loadingComments ? (
                             <div className="flex justify-center py-12">
@@ -423,46 +468,15 @@ const UserProfilePage = () => {
                                 <p className="text-roseTheme-dark/40 text-sm">Els seus comentaris apareixeran aquí</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-4 p-6">
                                 {userComments.map((comment) => (
-                                    <div
+                                    <CommentCard
                                         key={comment.id}
-                                        className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
-                                    >
-                                        <div className="flex-1">
-                                            {comment.author && (
-                                                <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
-                                                    👤 {comment.author}
-                                                </p>
-                                            )}
-
-                                            <p className="text-roseTheme-dark text-sm mb-2">
-                                                {comment.content}
-                                            </p>
-
-                                            <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
-                                                <span>❤️ {comment.votes} likes</span>
-                                                {comment.published_date && (
-                                                    <span>📅 {new Date(comment.published_date).toLocaleDateString('ca-ES')}</span>
-                                                )}
-                                                {comment.post && (
-                                                    <span className="text-roseTheme-dark/80">
-                                                        📝 Post #{comment.post}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {comment.url && (
-                                            <a
-                                                href={comment.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-roseTheme-dark hover:underline text-sm mt-2 block"
-                                            >
-                                                🔗 Veure comentari complet
-                                            </a>
-                                        )}
-                                    </div>
+                                        comment={comment}
+                                        depth={0}
+                                        onCommentDeleted={handleCommentDeleted}
+                                        onCommentUpdated={handleCommentUpdated}
+                                    />
                                 ))}
                             </div>
                         )}
@@ -516,13 +530,15 @@ const UserProfilePage = () => {
             {/* Comentaris Guardats */}
             {showSavedComments && (
                 <div className="mt-6">
-                    <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light p-6">
-                        <h2 className="text-2xl font-bold text-roseTheme-dark mb-4 flex items-center gap-2">
-                            💾 Comentaris guardats de {profile.nombre}
-                            {loadingSavedComments && (
-                                <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
-                            )}
-                        </h2>
+                    <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light overflow-hidden">
+                        <div className="p-6 border-b border-roseTheme-light">
+                            <h2 className="text-2xl font-bold text-roseTheme-dark flex items-center gap-2">
+                                💾 Comentaris guardats de {profile.nombre}
+                                {loadingSavedComments && (
+                                    <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                                )}
+                            </h2>
+                        </div>
 
                         {loadingSavedComments ? (
                             <div className="flex justify-center py-12">
@@ -538,46 +554,16 @@ const UserProfilePage = () => {
                                 <p className="text-roseTheme-dark/40 text-sm">Els comentaris guardats apareixeran aquí</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                {savedComments.map((comment) => (
-                                    <div
+                            <div className="space-y-4 p-6">
+                                {savedComments.map(comment => (
+                                    <CommentCard
                                         key={comment.id}
-                                        className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
-                                    >
-                                        <div className="flex-1">
-                                            {comment.author && (
-                                                <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
-                                                    👤 {comment.author}
-                                                </p>
-                                            )}
-
-                                            <p className="text-roseTheme-dark text-sm mb-2">
-                                                {comment.content}
-                                            </p>
-
-                                            <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
-                                                <span>❤️ {comment.votes} likes</span>
-                                                {comment.published_date && (
-                                                    <span>📅 {new Date(comment.published_date).toLocaleDateString('ca-ES')}</span>
-                                                )}
-                                                {comment.post && (
-                                                    <span className="text-roseTheme-dark/80">
-                                                        📝 Post #{comment.post}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {comment.url && (
-                                            <a
-                                                href={comment.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-roseTheme-dark hover:underline text-sm mt-2 block"
-                                            >
-                                                🔗 Veure comentari complet
-                                            </a>
-                                        )}
-                                    </div>
+                                        comment={comment}
+                                        depth={0}
+                                        onCommentDeleted={handleCommentDeleted}
+                                        onCommentUpdated={handleCommentUpdated}
+                                        onCommentUnsaved={handleCommentUnsaved}
+                                    />
                                 ))}
                             </div>
                         )}

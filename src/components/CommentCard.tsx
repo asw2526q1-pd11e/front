@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { upvoteComment, downvoteComment, deleteComment, toggleSaveComment } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useSavedComments } from '../context/SavedCommentContext';
 import EditCommentModal from './EditCommentModal';
 
 interface Comment {
@@ -27,6 +28,7 @@ interface Props {
     onReply?: (commentId: number, author: string) => void;
     onCommentDeleted?: (commentId: number) => void;
     onCommentUpdated?: (updatedComment: Comment) => void;
+    onCommentUnsaved?: (commentId: number) => void;
 }
 
 const CommentCard: React.FC<Props> = ({
@@ -34,10 +36,12 @@ const CommentCard: React.FC<Props> = ({
                                           depth = 0,
                                           onReply,
                                           onCommentDeleted,
-                                          onCommentUpdated
+                                          onCommentUpdated,
+                                          onCommentUnsaved
                                       }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { isCommentSaved, toggleCommentSaved } = useSavedComments();
     const [localComment, setLocalComment] = useState(comment);
     const [votes, setVotes] = useState(comment.votes);
     const [userVote, setUserVote] = useState<'up' | 'down' | null>(
@@ -46,12 +50,13 @@ const CommentCard: React.FC<Props> = ({
     const [isVoting, setIsVoting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [editingComment, setEditingComment] = useState<Comment | null>(null);
-    const [isSaved, setIsSaved] = useState(comment.is_saved || false);
+
+    // Usar l'estat global en lloc de l'estat local
+    const isSaved = isCommentSaved(comment.id);
 
     // Actualitzar l'estat local quan canvia el prop
     useEffect(() => {
         setLocalComment(comment);
-        setIsSaved(comment.is_saved || false);
     }, [comment]);
 
     const isOwner = user && localComment.author &&
@@ -159,10 +164,17 @@ const CommentCard: React.FC<Props> = ({
 
         try {
             const result = await toggleSaveComment(user.apiKey, comment.id);
-            setIsSaved(result.saved);
+
+            // Actualitzar l'estat global
+            toggleCommentSaved(comment.id, result.saved);
 
             // Actualitzar també el comentari local
             setLocalComment(prev => ({ ...prev, is_saved: result.saved }));
+
+            // Si es desguarda i tenim callback, notificar al pare
+            if (!result.saved && onCommentUnsaved) {
+                onCommentUnsaved(comment.id);
+            }
         } catch (error) {
             console.error('Error guardant comentari:', error);
         }
@@ -379,6 +391,7 @@ const CommentCard: React.FC<Props> = ({
                                 onReply={onReply}
                                 onCommentDeleted={onCommentDeleted}
                                 onCommentUpdated={onCommentUpdated}
+                                onCommentUnsaved={onCommentUnsaved}
                             />
                         ))}
                     </div>
@@ -392,17 +405,14 @@ const CommentCard: React.FC<Props> = ({
                     apiKey={user.apiKey}
                     onClose={() => setEditingComment(null)}
                     onCommentUpdated={(updatedComment) => {
-                        // Mantenir les respostes existents i el vot de l'usuari
                         const commentWithReplies = {
                             ...updatedComment,
                             replies: localComment.replies,
                             user_vote: localComment.user_vote
                         };
 
-                        // Actualitzar l'estat local immediatament
                         setLocalComment(commentWithReplies);
 
-                        // Propagar l'actualització al component pare
                         if (onCommentUpdated) {
                             onCommentUpdated(commentWithReplies);
                         }

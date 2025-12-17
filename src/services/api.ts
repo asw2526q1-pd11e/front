@@ -454,36 +454,6 @@ export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
 }
 
 
-// -------------------- USER COMMENTS --------------------
-
-export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
-  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/comments/`, {
-    headers: getAuthHeaders(apiKey)
-  });
-  if (!res.ok) {
-    if (res.status === 404) {
-      return [];
-    }
-    throw new Error("Failed to fetch user comments");
-  }
-  const comments = await res.json();
-
-  const mappedComments = comments.map((comment: any) => ({
-    id: comment.id,
-    post: comment.post,
-    parent: comment.parent,
-    content: comment.content,
-    author: comment.author,
-    published_date: comment.published_date,
-    votes: comment.votes,
-    url: comment.url,
-    image: comment.image,
-    is_saved: comment.is_saved ?? false,
-  }));
-
-  return mappedComments;
-}
-
 // -------------------- SAVED POSTS --------------------
 
 export async function toggleSavePost(apiKey: string, postId: number): Promise<{ saved: boolean }> {
@@ -496,20 +466,6 @@ export async function toggleSavePost(apiKey: string, postId: number): Promise<{ 
     throw new Error("Failed to toggle save post");
   }
 
-  const result = await res.json();
-  return result;
-}
-
-// -------------------- SAVED COMMENTS --------------------
-
-export async function toggleSaveComment(apiKey: string, commentId: number): Promise<{ saved: boolean }> {
-  const res = await fetch(`${ACCOUNTS_API_URL}/api/comments/${commentId}/toggle_saved/`, {
-    method: 'POST',
-    headers: getAuthHeaders(apiKey)
-  });
-  if (!res.ok) {
-    throw new Error("Failed to toggle save comment");
-  }
   const result = await res.json();
   return result;
 }
@@ -858,4 +814,88 @@ export async function isUserSubscribedToCommunity(apiKey: string, communityId: n
     console.error('Error checking subscription status:', error);
     return false;
   }
+}
+
+// -------------------- USER COMMENTS --------------------
+
+export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch user comments");
+  }
+
+  const comments = await res.json();
+
+  const mappedComments = comments.map((comment: any) => ({
+    id: comment.id,
+    post: comment.post,
+    parent: comment.parent,
+    content: comment.content,
+    author: comment.author,
+    author_id: comment.author_id,
+    published_date: comment.published_date,
+    votes: comment.votes,
+    url: comment.url,
+    image: comment.image,
+    is_saved: comment.is_saved ?? false,
+    user_vote: comment.user_vote,
+  }));
+
+  return mappedComments;
+}
+
+// -------------------- SAVED COMMENTS --------------------
+
+export async function fetchSavedComments(apiKey: string): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/saved-comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch saved comments");
+  }
+
+  const comments = await res.json();
+
+  const mappedComments = comments.map((comment: any) => ({
+    id: comment.id,
+    post: comment.post,
+    parent: comment.parent,
+    content: comment.content,
+    author: comment.author,
+    author_id: comment.author_id,
+    published_date: comment.published_date,
+    votes: comment.votes,
+    url: comment.url,
+    image: comment.image,
+    is_saved: true,
+    user_vote: comment.user_vote,
+  }));
+
+  return mappedComments;
+}
+
+// -------------------- TOGGLE SAVE COMMENT --------------------
+
+export async function toggleSaveComment(apiKey: string, commentId: number): Promise<{ saved: boolean }> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/api/comments/${commentId}/toggle_saved/`, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to toggle save comment");
+  }
+
+  const result = await res.json();
+  return result;
 }
