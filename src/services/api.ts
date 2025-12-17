@@ -792,7 +792,6 @@ export const updateComment = async (apiKey: string, commentId: number, content: 
     formData.append('image', image);
   }
 
-  // API_URL és /api/blog/api, així que hem de treure el /api final
   const baseUrl = API_URL.replace(/\/api$/, '');
   const response = await fetch(`${baseUrl}/comments/${commentId}/edit/`, {
     method: 'PUT',
@@ -808,8 +807,10 @@ export const updateComment = async (apiKey: string, commentId: number, content: 
 
   return response.json();
 };
+
 export const deleteComment = async (apiKey: string, commentId: number) => {
-  const response = await fetch(`${API_URL.replace('/api', '')}/comments/${commentId}/delete/`, {
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  const response = await fetch(`${baseUrl}/comments/${commentId}/delete/`, {
     method: 'DELETE',
     headers: {
       'X-API-Key': apiKey,
@@ -820,7 +821,6 @@ export const deleteComment = async (apiKey: string, commentId: number) => {
     throw new Error('Error eliminant el comentari');
   }
 
-  // DELETE normalment retorna 204 No Content
   if (response.status === 204) {
     return { success: true };
   }
@@ -859,5 +859,3 @@ export async function isUserSubscribedToCommunity(apiKey: string, communityId: n
     return false;
   }
 }
-
-// -------------------- OTHER USER PROFILE --------------------
