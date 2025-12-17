@@ -771,6 +771,48 @@ export async function fetchOtherUserComments(apiKey: string, userId: number): Pr
   return mappedComments;
 }
 
+export const updateComment = async (apiKey: string, commentId: number, content: string, image?: File | null) => {
+  const formData = new FormData();
+  formData.append('content', content);
+
+  if (image instanceof File) {
+    formData.append('image', image);
+  }
+
+  const response = await fetch(`${API_URL.replace('/api', '')}/comments/${commentId}/edit/`, {
+    method: 'PUT',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Error actualitzant el comentari');
+  }
+
+  return response.json();
+};
+
+export const deleteComment = async (apiKey: string, commentId: number) => {
+  const response = await fetch(`${API_URL.replace('/api', '')}/comments/${commentId}/delete/`, {
+    method: 'DELETE',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error eliminant el comentari');
+  }
+
+  // DELETE normalment retorna 204 No Content
+  if (response.status === 204) {
+    return { success: true };
+  }
+
+  return response.json();
+};
 export async function checkCommunitySubscription(apiKey: string, communityId: number): Promise<{ is_subscribed: boolean }> {
   const res = await fetch(`/api/communities/${communityId}/subscription-status/`, {
     headers: getAuthHeaders(apiKey)
