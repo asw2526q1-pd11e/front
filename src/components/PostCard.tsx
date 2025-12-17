@@ -134,6 +134,14 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
     navigate(`/posts/${post.id}`);
   };
 
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (post.author_id) {
+      navigate(`/users/${post.author_id}`);
+    }
+  };
+
   return (
       <>
         <article
@@ -198,12 +206,7 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
                 {/* Header amb avatar i info */}
                 <div className="flex items-center gap-3 mb-2">
                   <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (post.author_id) {
-                          navigate(`/users/${post.author_id}`);
-                        }
-                      }}
+                      onClick={handleAuthorClick}
                       className={`flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold shadow-md ${
                           post.author_id ? 'cursor-pointer hover:scale-110' : 'cursor-default'
                       } transition`}
@@ -212,13 +215,18 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap text-sm">
-                  <span className="font-bold text-roseTheme-dark hover:underline">
-                    u/{post.author || 'Anònim'}
-                  </span>
+                    <span
+                        onClick={handleAuthorClick}
+                        className={`font-bold text-roseTheme-dark ${
+                            post.author_id ? 'hover:underline cursor-pointer' : ''
+                        }`}
+                    >
+                      u/{post.author || 'Anònim'}
+                    </span>
                     <span className="text-roseTheme-dark/40">•</span>
                     <span className="text-roseTheme-dark/60">
-                    {formatDate(post.published_date)}
-                  </span>
+                      {formatDate(post.published_date)}
+                    </span>
                   </div>
                 </div>
 

@@ -5,12 +5,15 @@ import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
 import EditPostModal from '../components/EditPostModal';
 import CreateCommentModal from '../components/CreateCommentModal';
+import CommentCard from '../components/CommentCard';
+import EditCommentModal from '../components/EditCommentModal';
 
 interface Post {
     id: number;
     title: string;
     content: string;
     author?: string;
+    author_id?: number;
     published_date?: string;
     votes: number;
     url: string;
@@ -25,9 +28,10 @@ interface Comment {
     parent?: number | null;
     content: string;
     author?: string;
+    author_id?: number;
     published_date?: string;
     votes: number;
-    user_vote?: number; // -1 for downvote, 0 for no vote, 1 for upvote
+    user_vote?: number;
     url?: string;
     image?: string | null;
     replies?: Comment[];
@@ -53,8 +57,7 @@ export default function PostDetailPage() {
     const [replyingTo, setReplyingTo] = useState<{ id: number; author: string } | null>(null);
     const [postUserVote, setPostUserVote] = useState<'up' | 'down' | null>(null);
     const [isVoting, setIsVoting] = useState(false);
-    const [commentVotingStates, setCommentVotingStates] = useState<{ [key: number]: boolean }>({});
-    const [commentUserVotes, setCommentUserVotes] = useState<{ [key: number]: 'up' | 'down' | null }>({});
+    const [editingComment, setEditingComment] = useState<Comment | null>(null);
 
     useEffect(() => {
         if (!id) {
@@ -66,32 +69,10 @@ export default function PostDetailPage() {
         const loadPostDetail = async () => {
             try {
                 setLoading(true);
-
                 const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
                 setPost(postData);
-
                 const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
                 setComments(commentsData);
-                
-                // Inicializar estado de votos de comentarios
-                const initialCommentVotes: { [key: number]: 'up' | 'down' | null } = {};
-                const initializeCommentVotes = (comments: Comment[]) => {
-                    comments.forEach(comment => {
-                        if (comment.user_vote === 1) {
-                            initialCommentVotes[comment.id] = 'up';
-                        } else if (comment.user_vote === -1) {
-                            initialCommentVotes[comment.id] = 'down';
-                        } else {
-                            initialCommentVotes[comment.id] = null;
-                        }
-                        if (comment.replies && comment.replies.length > 0) {
-                            initializeCommentVotes(comment.replies);
-                        }
-                    });
-                };
-                initializeCommentVotes(commentsData);
-                setCommentUserVotes(initialCommentVotes);
-
                 setError(null);
             } catch (err) {
                 console.error("Error fetching post detail:", err);
@@ -106,14 +87,9 @@ export default function PostDetailPage() {
 
     const toggleSavePost = async (postId: number) => {
         if (!user?.apiKey || !post) return;
-
         try {
             const result = await apiToggleSavePost(user.apiKey, postId);
-
-            // Actualitzar l'estat global
             togglePostSaved(postId, result.saved);
-
-            // Actualitzar l'estat local
             setPost(prev => prev ? { ...prev, is_saved: result.saved } : null);
         } catch (err) {
             console.error('Error guardant post:', err);
@@ -122,7 +98,6 @@ export default function PostDetailPage() {
 
     const handleUpvote = async () => {
         if (!user?.apiKey || !post || isVoting) return;
-
         setIsVoting(true);
         try {
             const result = await upvotePost(user.apiKey, post.id);
@@ -137,7 +112,6 @@ export default function PostDetailPage() {
 
     const handleDownvote = async () => {
         if (!user?.apiKey || !post || isVoting) return;
-
         setIsVoting(true);
         try {
             const result = await downvotePost(user.apiKey, post.id);
@@ -152,7 +126,6 @@ export default function PostDetailPage() {
 
     const handleDeletePost = async () => {
         if (!user?.apiKey || !post) return;
-
         try {
             await deletePost(user.apiKey, post.id);
             navigate('/');
@@ -164,7 +137,6 @@ export default function PostDetailPage() {
 
     const handlePostUpdated = () => {
         if (!id) return;
-
         const loadPostDetail = async () => {
             try {
                 const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
@@ -173,39 +145,42 @@ export default function PostDetailPage() {
                 console.error("Error reloading post:", err);
             }
         };
-
         loadPostDetail();
         setShowEditModal(false);
     };
 
     const handleCommentCreated = async () => {
         if (!id) return;
-
         try {
             const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
             setComments(commentsData);
-            
-            // Reinicializar estado de votos de comentarios
-            const initialCommentVotes: { [key: number]: 'up' | 'down' | null } = {};
-            const initializeCommentVotes = (comments: Comment[]) => {
-                comments.forEach(comment => {
-                    if (comment.user_vote === 1) {
-                        initialCommentVotes[comment.id] = 'up';
-                    } else if (comment.user_vote === -1) {
-                        initialCommentVotes[comment.id] = 'down';
-                    } else {
-                        initialCommentVotes[comment.id] = null;
-                    }
-                    if (comment.replies && comment.replies.length > 0) {
-                        initializeCommentVotes(comment.replies);
-                    }
-                });
-            };
-            initializeCommentVotes(commentsData);
-            setCommentUserVotes(initialCommentVotes);
-            
             setShowCommentModal(false);
             setReplyingTo(null);
+        } catch (err) {
+            console.error("Error reloading comments:", err);
+        }
+    };
+
+    const handleCommentDeleted = async (commentId: number) => {
+        if (!id) return;
+        try {
+            const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
+            setComments(commentsData);
+        } catch (err) {
+            console.error("Error reloading comments:", err);
+        }
+    };
+
+    const handleCommentEdited = (comment: Comment) => {
+        setEditingComment(comment);
+    };
+
+    const handleCommentUpdated = async () => {
+        if (!id) return;
+        try {
+            const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
+            setComments(commentsData);
+            setEditingComment(null);
         } catch (err) {
             console.error("Error reloading comments:", err);
         }
@@ -216,210 +191,16 @@ export default function PostDetailPage() {
         setShowCommentModal(true);
     };
 
+    const handleAuthorClick = () => {
+        if (post?.author_id) {
+            navigate(`/users/${post.author_id}`);
+        }
+    };
+
     const isOwner = user && post?.author &&
         (user as any).username?.toLowerCase() === post.author.toLowerCase();
 
-    // Usar l'estat global per mostrar si està guardat
     const isSaved = post ? isPostSaved(post.id) : false;
-
-    // Función para obtener el voto del usuario para un comentario específico
-    const getUserVoteForComment = (commentId: number): 'up' | 'down' | null => {
-        return commentUserVotes[commentId] || null;
-    };
-
-    // Component recursiu per renderitzar comentaris amb replies
-    const CommentItem: React.FC<{ comment: Comment; depth?: number }> = ({ comment, depth = 0 }) => {
-        const userVoteForComment = getUserVoteForComment(comment.id);
-        
-        return (
-        <div className={`${depth > 0 ? 'ml-8 mt-3' : ''}`}>
-            <div className="border-2 border-roseTheme-light/50 rounded-xl p-4 hover:border-roseTheme-light transition">
-                <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-300 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
-                        {comment.author ? comment.author[0].toUpperCase() : '?'}
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-roseTheme-dark">
-                            u/{comment.author || 'Anònim'}
-                        </p>
-                        {comment.published_date && (
-                            <p className="text-xs text-roseTheme-dark/60">
-                                {new Date(comment.published_date).toLocaleDateString('ca-ES')}
-                            </p>
-                        )}
-                    </div>
-                    {depth > 0 && (
-                        <span className="ml-auto text-xs text-roseTheme-dark/40 font-medium">
-                            Resposta
-                        </span>
-                    )}
-                </div>
-
-                <p className="text-roseTheme-dark/80 mb-3 whitespace-pre-wrap leading-relaxed">
-                    {comment.content}
-                </p>
-
-                {comment.image && (
-                    <div className="mb-3 rounded-lg overflow-hidden">
-                        <img src={comment.image} alt="Comment" className="max-w-full" />
-                    </div>
-                )}
-
-                <div className="flex items-center gap-4 text-sm">
-                    {/* Voting buttons */}
-                    <div className="flex items-center gap-1">
-                        {user && (
-                            <button
-                                onClick={() => handleCommentUpvote(comment.id)}
-                                disabled={commentVotingStates[comment.id]}
-                                className={`p-1.5 rounded-lg transition-all duration-200 ${
-                                    userVoteForComment === 'up'
-                                        ? 'bg-green-100 text-green-600 scale-110' 
-                                        : 'hover:bg-green-50 text-roseTheme-dark/60 hover:text-green-600 hover:scale-110'
-                                } ${commentVotingStates[comment.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Upvote comentari"
-                            >
-                                <svg 
-                                    className="w-4 h-4" 
-                                    fill={userVoteForComment === 'up' ? 'currentColor' : 'none'} 
-                                    stroke="currentColor" 
-                                    strokeWidth={2.5} 
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                                </svg>
-                            </button>
-                        )}
-                        
-                        <span className={`font-semibold min-w-[2rem] text-center transition-colors ${
-                            userVoteForComment === 'up' ? 'text-green-600' : 
-                            userVoteForComment === 'down' ? 'text-red-600' : 
-                            comment.votes > 0 ? 'text-green-600' : 
-                            comment.votes < 0 ? 'text-red-600' : 'text-roseTheme-dark'
-                        }`}>
-                            {comment.votes}
-                        </span>
-                        
-                        {user && (
-                            <button
-                                onClick={() => handleCommentDownvote(comment.id)}
-                                disabled={commentVotingStates[comment.id]}
-                                className={`p-1.5 rounded-lg transition-all duration-200 ${
-                                    userVoteForComment === 'down'
-                                        ? 'bg-red-100 text-red-600 scale-110' 
-                                        : 'hover:bg-red-50 text-roseTheme-dark/60 hover:text-red-600 hover:scale-110'
-                                } ${commentVotingStates[comment.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Downvote comentari"
-                            >
-                                <svg 
-                                    className="w-4 h-4" 
-                                    fill={userVoteForComment === 'down' ? 'currentColor' : 'none'} 
-                                    stroke="currentColor" 
-                                    strokeWidth={2.5} 
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-                        )}
-                    </div>
-                    {comment.replies && comment.replies.length > 0 && (
-                        <span className="text-xs text-roseTheme-dark/50">
-                            {comment.replies.length} {comment.replies.length === 1 ? 'resposta' : 'respostes'}
-                        </span>
-                    )}
-                    {user && (
-                        <button
-                            onClick={() => handleReply(comment.id, comment.author || 'Anònim')}
-                            className="ml-auto text-xs font-semibold text-roseTheme hover:text-roseTheme-dark transition flex items-center gap-1"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                            </svg>
-                            Respondre
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Renderitzar respostes recursivament */}
-            {comment.replies && comment.replies.length > 0 && (
-                <div className="space-y-3 mt-3">
-                    {comment.replies.map(reply => (
-                        <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
-                    ))}
-                </div>
-            )}
-        </div>
-        );
-    };
-
-    const handleCommentUpvote = async (commentId: number) => {
-        if (!user?.apiKey || commentVotingStates[commentId]) return;
-
-        setCommentVotingStates(prev => ({ ...prev, [commentId]: true }));
-        try {
-            const result = await upvoteComment(user.apiKey, commentId);
-            
-            // Actualizar tanto los votos como el user_vote con lógica de toggle
-            setComments(prevComments => {
-                const updatedComments = updateCommentVotes(prevComments, commentId, result.votes, result.user_vote);
-                return updatedComments;
-            });
-            
-            // Actualizar estado local del voto del usuario
-            setCommentUserVotes(prev => ({
-                ...prev,
-                [commentId]: prev[commentId] === 'up' ? null : 'up'
-            }));
-        } catch (err) {
-            console.error('Error fent upvote al comentari:', err);
-        } finally {
-            setCommentVotingStates(prev => ({ ...prev, [commentId]: false }));
-        }
-    };
-
-    const handleCommentDownvote = async (commentId: number) => {
-        if (!user?.apiKey || commentVotingStates[commentId]) return;
-
-        setCommentVotingStates(prev => ({ ...prev, [commentId]: true }));
-        try {
-            const result = await downvoteComment(user.apiKey, commentId);
-            
-            // Actualizar tanto los votos como el user_vote con lógica de toggle
-            setComments(prevComments => {
-                const updatedComments = updateCommentVotes(prevComments, commentId, result.votes, result.user_vote);
-                return updatedComments;
-            });
-            
-            // Actualizar estado local del voto del usuario
-            setCommentUserVotes(prev => ({
-                ...prev,
-                [commentId]: prev[commentId] === 'down' ? null : 'down'
-            }));
-        } catch (err) {
-            console.error('Error fent downvote al comentari:', err);
-        } finally {
-            setCommentVotingStates(prev => ({ ...prev, [commentId]: false }));
-        }
-    };
-
-    // Función auxiliar per actualitzar els vots de un comentari específic
-    const updateCommentVotes = (comments: Comment[], targetId: number, newVotes: number, newUserVote?: number): Comment[] => {
-        return comments.map(comment => {
-            if (comment.id === targetId) {
-                return { ...comment, votes: newVotes, user_vote: newUserVote };
-            }
-            // Si té replies, buscar recursivament
-            if (comment.replies && comment.replies.length > 0) {
-                return {
-                    ...comment,
-                    replies: updateCommentVotes(comment.replies, targetId, newVotes, newUserVote)
-                };
-            }
-            return comment;
-        });
-    };
 
     if (loading) {
         return (
@@ -480,11 +261,21 @@ export default function PostDetailPage() {
                     {/* Author and metadata */}
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold">
+                            <div
+                                onClick={handleAuthorClick}
+                                className={`w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold ${
+                                    post.author_id ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                                } transition`}
+                            >
                                 {post.author ? post.author[0].toUpperCase() : '?'}
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-roseTheme-dark">
+                                <p
+                                    onClick={handleAuthorClick}
+                                    className={`text-sm font-bold text-roseTheme-dark ${
+                                        post.author_id ? 'hover:underline cursor-pointer' : ''
+                                    }`}
+                                >
                                     u/{post.author || 'Anònim'}
                                 </p>
                                 {post.published_date && (
@@ -547,8 +338,8 @@ export default function PostDetailPage() {
                         {/* Votes */}
                         <div className="flex items-center gap-2">
                             {user && (
-                                <button 
-                                    onClick={handleUpvote} 
+                                <button
+                                    onClick={handleUpvote}
                                     disabled={isVoting}
                                     className={`p-2 rounded-lg transition-all duration-200 ${
                                         postUserVote === 'up'
@@ -557,30 +348,30 @@ export default function PostDetailPage() {
                                     } ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
                                     title="Upvote"
                                 >
-                                    <svg 
-                                        className="w-5 h-5" 
-                                        fill={postUserVote === 'up' ? 'currentColor' : 'none'} 
-                                        stroke="currentColor" 
-                                        strokeWidth={2.5} 
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill={postUserVote === 'up' ? 'currentColor' : 'none'}
+                                        stroke="currentColor"
+                                        strokeWidth={2.5}
                                         viewBox="0 0 24 24"
                                     >
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                                     </svg>
                                 </button>
                             )}
-                            
+
                             <span className={`font-bold text-lg transition-colors min-w-[3rem] text-center ${
-                                postUserVote === 'up' ? 'text-green-600' : 
-                                postUserVote === 'down' ? 'text-red-600' : 
-                                post.votes > 0 ? 'text-green-600' : 
-                                post.votes < 0 ? 'text-red-600' : 'text-roseTheme-dark'
+                                postUserVote === 'up' ? 'text-green-600' :
+                                    postUserVote === 'down' ? 'text-red-600' :
+                                        post.votes > 0 ? 'text-green-600' :
+                                            post.votes < 0 ? 'text-red-600' : 'text-roseTheme-dark'
                             }`}>
                                 {post.votes}
                             </span>
-                            
+
                             {user && (
-                                <button 
-                                    onClick={handleDownvote} 
+                                <button
+                                    onClick={handleDownvote}
                                     disabled={isVoting}
                                     className={`p-2 rounded-lg transition-all duration-200 ${
                                         postUserVote === 'down'
@@ -589,11 +380,11 @@ export default function PostDetailPage() {
                                     } ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
                                     title="Downvote"
                                 >
-                                    <svg 
-                                        className="w-5 h-5" 
-                                        fill={postUserVote === 'down' ? 'currentColor' : 'none'} 
-                                        stroke="currentColor" 
-                                        strokeWidth={2.5} 
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill={postUserVote === 'down' ? 'currentColor' : 'none'}
+                                        stroke="currentColor"
+                                        strokeWidth={2.5}
                                         viewBox="0 0 24 24"
                                     >
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -652,7 +443,6 @@ export default function PostDetailPage() {
                         </h2>
 
                         <div className="flex items-center gap-3">
-                            {/* Add comment button */}
                             {user && (
                                 <button
                                     onClick={() => {
@@ -668,7 +458,6 @@ export default function PostDetailPage() {
                                 </button>
                             )}
 
-                            {/* Comment order selector */}
                             {comments.length > 0 && (
                                 <div className="relative">
                                     <select
@@ -699,7 +488,13 @@ export default function PostDetailPage() {
                     ) : (
                         <div className="space-y-4">
                             {comments.map((comment) => (
-                                <CommentItem key={comment.id} comment={comment} />
+                                <CommentCard
+                                    key={comment.id}
+                                    comment={comment}
+                                    onReply={handleReply}
+                                    onCommentDeleted={handleCommentDeleted}
+                                    onCommentEdited={handleCommentEdited}
+                                />
                             ))}
                         </div>
                     )}
@@ -742,7 +537,7 @@ export default function PostDetailPage() {
                 </div>
             )}
 
-            {/* Edit Modal */}
+
             {showEditModal && user?.apiKey && post && (
                 <EditPostModal
                     post={post}
@@ -752,7 +547,6 @@ export default function PostDetailPage() {
                 />
             )}
 
-            {/* Comment Modal */}
             {showCommentModal && user?.apiKey && post && (
                 <CreateCommentModal
                     postId={post.id}
@@ -764,6 +558,15 @@ export default function PostDetailPage() {
                         setReplyingTo(null);
                     }}
                     onCommentCreated={handleCommentCreated}
+                />
+            )}
+
+            {editingComment && user?.apiKey && (
+                <EditCommentModal
+                    comment={editingComment}
+                    apiKey={user.apiKey}
+                    onClose={() => setEditingComment(null)}
+                    onCommentUpdated={handleCommentUpdated}
                 />
             )}
         </div>
