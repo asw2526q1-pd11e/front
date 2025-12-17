@@ -11,6 +11,7 @@ export interface Post {
   title: string;
   content: string;
   author?: string;
+  author_id?: number;
   published_date?: string;
   votes: number;
   url: string;
@@ -45,6 +46,7 @@ export interface Community {
 }
 
 export interface UserProfile {
+  user_id: number;
   username: string;
   nombre: string;
   bio: string;
@@ -390,6 +392,7 @@ export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
     title: post.title,
     content: post.content,
     author: post.author_name || post.author,
+    author_id: post.author_id,
     author_bio: post.author_bio,
     published_date: post.published_date,
     votes: post.votes,
@@ -423,6 +426,7 @@ export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
     title: post.title,
     content: post.content,
     author: post.author_name || post.author,
+    author_id: post.author_id,
     author_bio: post.author_bio,
     published_date: post.published_date,
     votes: post.votes,
@@ -608,4 +612,75 @@ export async function downvoteComment(apiKey: string, commentId: number): Promis
   });
   if (!res.ok) throw new Error("Failed to downvote comment");
   return res.json();
+}
+// -------------------- OTHER USER PROFILE --------------------
+
+export async function fetchOtherUserProfile(apiKey: string, userId: number): Promise<UserProfile> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/${userId}/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) throw new Error("Failed to fetch user profile");
+  return res.json();
+}
+
+export async function fetchOtherUserPosts(apiKey: string, userId: number): Promise<Post[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/${userId}/posts/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch user posts");
+  }
+
+  const posts = await res.json();
+
+  const mappedPosts = posts.map((post: any) => ({
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    author: post.author_name || post.author,
+    author_id: post.author_id,
+    author_bio: post.author_bio,
+    published_date: post.published_date,
+    votes: post.votes,
+    url: post.url,
+    image: post.image_url || null,
+    communities: post.communities || [],
+    is_saved: post.is_saved ?? false,
+  }));
+
+  return mappedPosts;
+}
+
+export async function fetchOtherUserComments(apiKey: string, userId: number): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/${userId}/comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch user comments");
+  }
+
+  const comments = await res.json();
+
+  const mappedComments = comments.map((comment: any) => ({
+    id: comment.id,
+    post: comment.post,
+    parent: comment.parent,
+    content: comment.content,
+    author: comment.author,
+    published_date: comment.published_date,
+    votes: comment.votes,
+    url: comment.url,
+    image: comment.image,
+    is_saved: comment.is_saved ?? false,
+  }));
+
+  return mappedComments;
 }
