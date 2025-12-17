@@ -31,6 +31,7 @@ export interface Comment {
   image?: string | null;
   replies?: Comment[];
   is_saved?: boolean;
+  user_vote?: number; // -1 = downvote, 0 = no vote, 1 = upvote
 }
 
 export interface Community {
@@ -582,5 +583,29 @@ export async function fetchCommunityPosts(communityId: number, apiKey?: string):
     throw new Error('No s\'han pogut carregar els posts de la comunitat');
   }
 
+  return res.json();
+}
+
+// -------------------- COMMENT VOTING --------------------
+
+export async function upvoteComment(apiKey: string, commentId: number): Promise<{ votes: number; user_vote: number }> {
+  const res = await fetch(`${API_URL}/comments/${commentId}/upvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to upvote comment");
+  return res.json();
+}
+
+export async function downvoteComment(apiKey: string, commentId: number): Promise<{ votes: number; user_vote: number }> {
+  const res = await fetch(`${API_URL}/comments/${commentId}/downvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to downvote comment");
   return res.json();
 }
