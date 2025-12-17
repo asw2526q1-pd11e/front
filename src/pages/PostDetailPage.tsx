@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { fetchPostDetail, fetchPostCommentsTree, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost, deletePost } from "../services/api";
+import { fetchPostDetail, fetchPostCommentsTree, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost, deletePost, upvoteComment, downvoteComment } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
 import EditPostModal from '../components/EditPostModal';
@@ -27,6 +27,7 @@ interface Comment {
     author?: string;
     published_date?: string;
     votes: number;
+    user_vote?: number; // -1 for downvote, 0 for no vote, 1 for upvote
     url?: string;
     image?: string | null;
     replies?: Comment[];
@@ -50,6 +51,10 @@ export default function PostDetailPage() {
     const [commentOrder, setCommentOrder] = useState<CommentOrderType>('new');
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [replyingTo, setReplyingTo] = useState<{ id: number; author: string } | null>(null);
+    const [postUserVote, setPostUserVote] = useState<'up' | 'down' | null>(null);
+    const [isVoting, setIsVoting] = useState(false);
+    const [commentVotingStates, setCommentVotingStates] = useState<{ [key: number]: boolean }>({});
+    const [commentUserVotes, setCommentUserVotes] = useState<{ [key: number]: 'up' | 'down' | null }>({});
 
     useEffect(() => {
         if (!id) {
@@ -67,6 +72,25 @@ export default function PostDetailPage() {
 
                 const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
                 setComments(commentsData);
+                
+                // Inicializar estado de votos de comentarios
+                const initialCommentVotes: { [key: number]: 'up' | 'down' | null } = {};
+                const initializeCommentVotes = (comments: Comment[]) => {
+                    comments.forEach(comment => {
+                        if (comment.user_vote === 1) {
+                            initialCommentVotes[comment.id] = 'up';
+                        } else if (comment.user_vote === -1) {
+                            initialCommentVotes[comment.id] = 'down';
+                        } else {
+                            initialCommentVotes[comment.id] = null;
+                        }
+                        if (comment.replies && comment.replies.length > 0) {
+                            initializeCommentVotes(comment.replies);
+                        }
+                    });
+                };
+                initializeCommentVotes(commentsData);
+                setCommentUserVotes(initialCommentVotes);
 
                 setError(null);
             } catch (err) {
@@ -83,43 +107,46 @@ export default function PostDetailPage() {
     const toggleSavePost = async (postId: number) => {
         if (!user?.apiKey || !post) return;
 
-        console.log(`💾 PostDetailPage ${postId} - Estat actual abans de toggle: isSaved=${isPostSaved(postId)}`);
-
         try {
             const result = await apiToggleSavePost(user.apiKey, postId);
-            console.log(`💾 PostDetailPage ${postId} - Resposta del backend: saved=${result.saved}`);
 
             // Actualitzar l'estat global
             togglePostSaved(postId, result.saved);
 
             // Actualitzar l'estat local
             setPost(prev => prev ? { ...prev, is_saved: result.saved } : null);
-
-            console.log(`💾 PostDetailPage ${postId} - Nou estat: isSaved=${result.saved}`);
         } catch (err) {
             console.error('Error guardant post:', err);
         }
     };
 
     const handleUpvote = async () => {
-        if (!user?.apiKey || !post) return;
+        if (!user?.apiKey || !post || isVoting) return;
 
+        setIsVoting(true);
         try {
             const result = await upvotePost(user.apiKey, post.id);
             setPost(prev => prev ? { ...prev, votes: result.votes } : null);
+            setPostUserVote(postUserVote === 'up' ? null : 'up');
         } catch (err) {
             console.error('Error fent upvote:', err);
+        } finally {
+            setIsVoting(false);
         }
     };
 
     const handleDownvote = async () => {
-        if (!user?.apiKey || !post) return;
+        if (!user?.apiKey || !post || isVoting) return;
 
+        setIsVoting(true);
         try {
             const result = await downvotePost(user.apiKey, post.id);
             setPost(prev => prev ? { ...prev, votes: result.votes } : null);
+            setPostUserVote(postUserVote === 'down' ? null : 'down');
         } catch (err) {
             console.error('Error fent downvote:', err);
+        } finally {
+            setIsVoting(false);
         }
     };
 
@@ -157,6 +184,26 @@ export default function PostDetailPage() {
         try {
             const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
             setComments(commentsData);
+            
+            // Reinicializar estado de votos de comentarios
+            const initialCommentVotes: { [key: number]: 'up' | 'down' | null } = {};
+            const initializeCommentVotes = (comments: Comment[]) => {
+                comments.forEach(comment => {
+                    if (comment.user_vote === 1) {
+                        initialCommentVotes[comment.id] = 'up';
+                    } else if (comment.user_vote === -1) {
+                        initialCommentVotes[comment.id] = 'down';
+                    } else {
+                        initialCommentVotes[comment.id] = null;
+                    }
+                    if (comment.replies && comment.replies.length > 0) {
+                        initializeCommentVotes(comment.replies);
+                    }
+                });
+            };
+            initializeCommentVotes(commentsData);
+            setCommentUserVotes(initialCommentVotes);
+            
             setShowCommentModal(false);
             setReplyingTo(null);
         } catch (err) {
@@ -175,8 +222,16 @@ export default function PostDetailPage() {
     // Usar l'estat global per mostrar si està guardat
     const isSaved = post ? isPostSaved(post.id) : false;
 
+    // Función para obtener el voto del usuario para un comentario específico
+    const getUserVoteForComment = (commentId: number): 'up' | 'down' | null => {
+        return commentUserVotes[commentId] || null;
+    };
+
     // Component recursiu per renderitzar comentaris amb replies
-    const CommentItem: React.FC<{ comment: Comment; depth?: number }> = ({ comment, depth = 0 }) => (
+    const CommentItem: React.FC<{ comment: Comment; depth?: number }> = ({ comment, depth = 0 }) => {
+        const userVoteForComment = getUserVoteForComment(comment.id);
+        
+        return (
         <div className={`${depth > 0 ? 'ml-8 mt-3' : ''}`}>
             <div className="border-2 border-roseTheme-light/50 rounded-xl p-4 hover:border-roseTheme-light transition">
                 <div className="flex items-center gap-3 mb-3">
@@ -211,14 +266,62 @@ export default function PostDetailPage() {
                 )}
 
                 <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1 text-roseTheme-dark/60">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                        <span className="font-semibold">{comment.votes}</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                    {/* Voting buttons */}
+                    <div className="flex items-center gap-1">
+                        {user && (
+                            <button
+                                onClick={() => handleCommentUpvote(comment.id)}
+                                disabled={commentVotingStates[comment.id]}
+                                className={`p-1.5 rounded-lg transition-all duration-200 ${
+                                    userVoteForComment === 'up'
+                                        ? 'bg-green-100 text-green-600 scale-110' 
+                                        : 'hover:bg-green-50 text-roseTheme-dark/60 hover:text-green-600 hover:scale-110'
+                                } ${commentVotingStates[comment.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Upvote comentari"
+                            >
+                                <svg 
+                                    className="w-4 h-4" 
+                                    fill={userVoteForComment === 'up' ? 'currentColor' : 'none'} 
+                                    stroke="currentColor" 
+                                    strokeWidth={2.5} 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                </svg>
+                            </button>
+                        )}
+                        
+                        <span className={`font-semibold min-w-[2rem] text-center transition-colors ${
+                            userVoteForComment === 'up' ? 'text-green-600' : 
+                            userVoteForComment === 'down' ? 'text-red-600' : 
+                            comment.votes > 0 ? 'text-green-600' : 
+                            comment.votes < 0 ? 'text-red-600' : 'text-roseTheme-dark'
+                        }`}>
+                            {comment.votes}
+                        </span>
+                        
+                        {user && (
+                            <button
+                                onClick={() => handleCommentDownvote(comment.id)}
+                                disabled={commentVotingStates[comment.id]}
+                                className={`p-1.5 rounded-lg transition-all duration-200 ${
+                                    userVoteForComment === 'down'
+                                        ? 'bg-red-100 text-red-600 scale-110' 
+                                        : 'hover:bg-red-50 text-roseTheme-dark/60 hover:text-red-600 hover:scale-110'
+                                } ${commentVotingStates[comment.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Downvote comentari"
+                            >
+                                <svg 
+                                    className="w-4 h-4" 
+                                    fill={userVoteForComment === 'down' ? 'currentColor' : 'none'} 
+                                    stroke="currentColor" 
+                                    strokeWidth={2.5} 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                     {comment.replies && comment.replies.length > 0 && (
                         <span className="text-xs text-roseTheme-dark/50">
@@ -248,7 +351,75 @@ export default function PostDetailPage() {
                 </div>
             )}
         </div>
-    );
+        );
+    };
+
+    const handleCommentUpvote = async (commentId: number) => {
+        if (!user?.apiKey || commentVotingStates[commentId]) return;
+
+        setCommentVotingStates(prev => ({ ...prev, [commentId]: true }));
+        try {
+            const result = await upvoteComment(user.apiKey, commentId);
+            
+            // Actualizar tanto los votos como el user_vote con lógica de toggle
+            setComments(prevComments => {
+                const updatedComments = updateCommentVotes(prevComments, commentId, result.votes, result.user_vote);
+                return updatedComments;
+            });
+            
+            // Actualizar estado local del voto del usuario
+            setCommentUserVotes(prev => ({
+                ...prev,
+                [commentId]: prev[commentId] === 'up' ? null : 'up'
+            }));
+        } catch (err) {
+            console.error('Error fent upvote al comentari:', err);
+        } finally {
+            setCommentVotingStates(prev => ({ ...prev, [commentId]: false }));
+        }
+    };
+
+    const handleCommentDownvote = async (commentId: number) => {
+        if (!user?.apiKey || commentVotingStates[commentId]) return;
+
+        setCommentVotingStates(prev => ({ ...prev, [commentId]: true }));
+        try {
+            const result = await downvoteComment(user.apiKey, commentId);
+            
+            // Actualizar tanto los votos como el user_vote con lógica de toggle
+            setComments(prevComments => {
+                const updatedComments = updateCommentVotes(prevComments, commentId, result.votes, result.user_vote);
+                return updatedComments;
+            });
+            
+            // Actualizar estado local del voto del usuario
+            setCommentUserVotes(prev => ({
+                ...prev,
+                [commentId]: prev[commentId] === 'down' ? null : 'down'
+            }));
+        } catch (err) {
+            console.error('Error fent downvote al comentari:', err);
+        } finally {
+            setCommentVotingStates(prev => ({ ...prev, [commentId]: false }));
+        }
+    };
+
+    // Función auxiliar per actualitzar els vots de un comentari específic
+    const updateCommentVotes = (comments: Comment[], targetId: number, newVotes: number, newUserVote?: number): Comment[] => {
+        return comments.map(comment => {
+            if (comment.id === targetId) {
+                return { ...comment, votes: newVotes, user_vote: newUserVote };
+            }
+            // Si té replies, buscar recursivament
+            if (comment.replies && comment.replies.length > 0) {
+                return {
+                    ...comment,
+                    replies: updateCommentVotes(comment.replies, targetId, newVotes, newUserVote)
+                };
+            }
+            return comment;
+        });
+    };
 
     if (loading) {
         return (
@@ -376,19 +547,56 @@ export default function PostDetailPage() {
                         {/* Votes */}
                         <div className="flex items-center gap-2">
                             {user && (
-                                <button onClick={handleUpvote} className="p-2 hover:bg-green-100 rounded-lg transition">
-                                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                <button 
+                                    onClick={handleUpvote} 
+                                    disabled={isVoting}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                        postUserVote === 'up'
+                                            ? 'bg-green-100 text-green-600 scale-110'
+                                            : 'hover:bg-green-50 text-roseTheme-dark/60 hover:text-green-600'
+                                    } ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
+                                    title="Upvote"
+                                >
+                                    <svg 
+                                        className="w-5 h-5" 
+                                        fill={postUserVote === 'up' ? 'currentColor' : 'none'} 
+                                        stroke="currentColor" 
+                                        strokeWidth={2.5} 
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                                     </svg>
                                 </button>
                             )}
-                            <span className="font-bold text-lg text-roseTheme-dark min-w-[3rem] text-center">
+                            
+                            <span className={`font-bold text-lg transition-colors min-w-[3rem] text-center ${
+                                postUserVote === 'up' ? 'text-green-600' : 
+                                postUserVote === 'down' ? 'text-red-600' : 
+                                post.votes > 0 ? 'text-green-600' : 
+                                post.votes < 0 ? 'text-red-600' : 'text-roseTheme-dark'
+                            }`}>
                                 {post.votes}
                             </span>
+                            
                             {user && (
-                                <button onClick={handleDownvote} className="p-2 hover:bg-red-100 rounded-lg transition">
-                                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                <button 
+                                    onClick={handleDownvote} 
+                                    disabled={isVoting}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                        postUserVote === 'down'
+                                            ? 'bg-red-100 text-red-600 scale-110'
+                                            : 'hover:bg-red-50 text-roseTheme-dark/60 hover:text-red-600'
+                                    } ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
+                                    title="Downvote"
+                                >
+                                    <svg 
+                                        className="w-5 h-5" 
+                                        fill={postUserVote === 'down' ? 'currentColor' : 'none'} 
+                                        stroke="currentColor" 
+                                        strokeWidth={2.5} 
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
                             )}
