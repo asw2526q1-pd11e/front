@@ -8,6 +8,7 @@ import { fetchUserProfile, fetchUserPosts, fetchUserComments,
 import EditProfileModal from '../components/EditPerfilPage';
 import EditPostModal from '../components/EditPostModal';
 import PostCard from '../components/PostCard';
+import CommentCard from '../components/CommentCard';
 
 const PerfilPage = () => {
   const { user, logout } = useAuth();
@@ -174,6 +175,22 @@ const PerfilPage = () => {
       setShowMyPosts(false);
       setShowSaved(false);
     }
+  };
+
+  // Handler per actualitzar un comentari
+  const handleCommentUpdated = (updatedComment: Comment) => {
+    setUserComments(prevComments =>
+        prevComments.map(c =>
+            c.id === updatedComment.id ? updatedComment : c
+        )
+    );
+  };
+
+  // Handler per eliminar un comentari
+  const handleCommentDeleted = (commentId: number) => {
+    setUserComments(prevComments =>
+        prevComments.filter(c => c.id !== commentId)
+    );
   };
 
   if (loading) {
@@ -413,13 +430,15 @@ const PerfilPage = () => {
         {/* Els meus comentaris */}
         {showMyComments && (
             <div className="mt-6">
-              <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light p-6">
-                <h2 className="text-2xl font-bold text-roseTheme-dark mb-4 flex items-center gap-2">
-                  💬 Els meus comentaris
-                  {loadingComments && (
-                      <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
-                  )}
-                </h2>
+              <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light overflow-hidden">
+                <div className="p-6 border-b border-roseTheme-light">
+                  <h2 className="text-2xl font-bold text-roseTheme-dark flex items-center gap-2">
+                    💬 Els meus comentaris
+                    {loadingComments && (
+                        <div className="w-5 h-5 border-2 border-roseTheme-dark border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                  </h2>
+                </div>
 
                 {loadingComments ? (
                     <div className="flex justify-center py-12">
@@ -435,48 +454,15 @@ const PerfilPage = () => {
                       <p className="text-roseTheme-dark/40 text-sm">Els teus comentaris apareixeran aquí</p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-4 p-6">
                       {userComments.map((comment) => (
-                          <div
+                          <CommentCard
                               key={comment.id}
-                              className="border border-roseTheme-light rounded-xl p-4 hover:shadow-md transition"
-                          >
-                            <div className="flex-1">
-                              <div className="flex-1">
-                                {comment.author && (
-                                    <p className="text-roseTheme-dark/80 text-xs font-semibold mb-2">
-                                      👤 {comment.author}
-                                    </p>
-                                )}
-
-                                <p className="text-roseTheme-dark text-sm mb-2">
-                                  {comment.content}
-                                </p>
-
-                                <div className="flex items-center gap-4 text-xs text-roseTheme-dark/60">
-                                  <span>❤️ {comment.votes} likes</span>
-                                  {comment.published_date && (
-                                      <span>📅 {new Date(comment.published_date).toLocaleDateString('ca-ES')}</span>
-                                  )}
-                                  {comment.post && (
-                                      <span className="text-roseTheme-dark/80">
-                                        📝 Post #{comment.post}
-                                      </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            {comment.url && (
-                                <a
-                                    href={comment.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-roseTheme-dark hover:underline text-sm mt-2 block"
-                                >
-                                  🔗 Veure comentari complet
-                                </a>
-                            )}
-                          </div>
+                              comment={comment}
+                              depth={0}
+                              onCommentDeleted={handleCommentDeleted}
+                              onCommentUpdated={handleCommentUpdated}
+                          />
                       ))}
                     </div>
                 )}

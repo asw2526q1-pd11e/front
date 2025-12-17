@@ -792,7 +792,9 @@ export const updateComment = async (apiKey: string, commentId: number, content: 
     formData.append('image', image);
   }
 
-  const response = await fetch(`${API_URL.replace('/api', '')}/comments/${commentId}/edit/`, {
+  // API_URL és /api/blog/api, així que hem de treure el /api final
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  const response = await fetch(`${baseUrl}/comments/${commentId}/edit/`, {
     method: 'PUT',
     headers: {
       'X-API-Key': apiKey,
@@ -806,7 +808,6 @@ export const updateComment = async (apiKey: string, commentId: number, content: 
 
   return response.json();
 };
-
 export const deleteComment = async (apiKey: string, commentId: number) => {
   const response = await fetch(`${API_URL.replace('/api', '')}/comments/${commentId}/delete/`, {
     method: 'DELETE',
@@ -826,6 +827,7 @@ export const deleteComment = async (apiKey: string, commentId: number) => {
 
   return response.json();
 };
+
 export async function checkCommunitySubscription(apiKey: string, communityId: number): Promise<{ is_subscribed: boolean }> {
   const res = await fetch(`/api/communities/${communityId}/subscription-status/`, {
     headers: getAuthHeaders(apiKey)
