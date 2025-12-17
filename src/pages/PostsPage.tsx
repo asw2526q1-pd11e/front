@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { fetchPosts } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
+import { useSavedPosts } from '../context/SavedPostContext';
 import CreatePostModal from '../components/CreatePostModal';
 import EditPostModal from '../components/EditPostModal';
 import PostCard from '../components/PostCard';
@@ -19,18 +19,18 @@ export default function PostsPage() {
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [activeOrder, setActiveOrder] = useState<OrderType>('new');
     const { user } = useAuth();
+    const { isLoading: savedPostsLoading } = useSavedPosts();
 
     const loadPosts = () => {
         setLoading(true);
         setError(null);
-        
+
         fetchPosts(user?.apiKey, activeFilter, activeOrder)
             .then(data => {
                 setPosts(data);
                 setError(null);
             })
             .catch(err => {
-                console.error("Error fetching posts:", err);
                 setError(err.message || "No s'han pogut carregar els posts");
             })
             .finally(() => setLoading(false));
@@ -173,15 +173,13 @@ export default function PostsPage() {
                 ) : (
                     <div className="border-2 border-roseTheme-light rounded-xl overflow-hidden divide-y divide-roseTheme-light shadow-lg bg-white">
                         {posts.map(post => (
-                            <PostCard 
-                                key={post.id} 
+                            <PostCard
+                                key={post.id}
                                 post={post}
                                 onPostDeleted={(postId) => {
-                                    console.log('Deleting post:', postId);
                                     setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
                                 }}
                                 onPostEdited={(post) => {
-                                    console.log('Editing post:', post);
                                     setEditingPost(post);
                                 }}
                             />

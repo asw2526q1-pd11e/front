@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { fetchPostDetail, fetchPostCommentsTree, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost, deletePost } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
+import { useSavedPosts } from '../context/SavedPostContext';
 import EditPostModal from '../components/EditPostModal';
+import CreateCommentModal from '../components/CreateCommentModal';
 
 interface Post {
     id: number;
@@ -37,7 +39,8 @@ export default function PostDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
-    
+    const { isPostSaved, togglePostSaved } = useSavedPosts();
+
     const [post, setPost] = useState<Post | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -45,6 +48,8 @@ export default function PostDetailPage() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [commentOrder, setCommentOrder] = useState<CommentOrderType>('new');
+    const [showCommentModal, setShowCommentModal] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<{ id: number; author: string } | null>(null);
 
     useEffect(() => {
         if (!id) {
@@ -56,13 +61,13 @@ export default function PostDetailPage() {
         const loadPostDetail = async () => {
             try {
                 setLoading(true);
-                
+
                 const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
                 setPost(postData);
-                
+
                 const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
                 setComments(commentsData);
-                
+
                 setError(null);
             } catch (err) {
                 console.error("Error fetching post detail:", err);
@@ -78,9 +83,19 @@ export default function PostDetailPage() {
     const toggleSavePost = async (postId: number) => {
         if (!user?.apiKey || !post) return;
 
+        console.log(`💾 PostDetailPage ${postId} - Estat actual abans de toggle: isSaved=${isPostSaved(postId)}`);
+
         try {
             const result = await apiToggleSavePost(user.apiKey, postId);
+            console.log(`💾 PostDetailPage ${postId} - Resposta del backend: saved=${result.saved}`);
+
+            // Actualitzar l'estat global
+            togglePostSaved(postId, result.saved);
+
+            // Actualitzar l'estat local
             setPost(prev => prev ? { ...prev, is_saved: result.saved } : null);
+
+            console.log(`💾 PostDetailPage ${postId} - Nou estat: isSaved=${result.saved}`);
         } catch (err) {
             console.error('Error guardant post:', err);
         }
@@ -122,7 +137,7 @@ export default function PostDetailPage() {
 
     const handlePostUpdated = () => {
         if (!id) return;
-        
+
         const loadPostDetail = async () => {
             try {
                 const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
@@ -131,13 +146,34 @@ export default function PostDetailPage() {
                 console.error("Error reloading post:", err);
             }
         };
-        
+
         loadPostDetail();
         setShowEditModal(false);
     };
 
-    const isOwner = user && post?.author && 
+    const handleCommentCreated = async () => {
+        if (!id) return;
+
+        try {
+            const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
+            setComments(commentsData);
+            setShowCommentModal(false);
+            setReplyingTo(null);
+        } catch (err) {
+            console.error("Error reloading comments:", err);
+        }
+    };
+
+    const handleReply = (commentId: number, author: string) => {
+        setReplyingTo({ id: commentId, author });
+        setShowCommentModal(true);
+    };
+
+    const isOwner = user && post?.author &&
         (user as any).username?.toLowerCase() === post.author.toLowerCase();
+
+    // Usar l'estat global per mostrar si està guardat
+    const isSaved = post ? isPostSaved(post.id) : false;
 
     // Component recursiu per renderitzar comentaris amb replies
     const CommentItem: React.FC<{ comment: Comment; depth?: number }> = ({ comment, depth = 0 }) => (
@@ -163,11 +199,17 @@ export default function PostDetailPage() {
                         </span>
                     )}
                 </div>
-                
+
                 <p className="text-roseTheme-dark/80 mb-3 whitespace-pre-wrap leading-relaxed">
                     {comment.content}
                 </p>
-                
+
+                {comment.image && (
+                    <div className="mb-3 rounded-lg overflow-hidden">
+                        <img src={comment.image} alt="Comment" className="max-w-full" />
+                    </div>
+                )}
+
                 <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1 text-roseTheme-dark/60">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,9 +225,20 @@ export default function PostDetailPage() {
                             {comment.replies.length} {comment.replies.length === 1 ? 'resposta' : 'respostes'}
                         </span>
                     )}
+                    {user && (
+                        <button
+                            onClick={() => handleReply(comment.id, comment.author || 'Anònim')}
+                            className="ml-auto text-xs font-semibold text-roseTheme hover:text-roseTheme-dark transition flex items-center gap-1"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            Respondre
+                        </button>
+                    )}
                 </div>
             </div>
-            
+
             {/* Renderitzar respostes recursivament */}
             {comment.replies && comment.replies.length > 0 && (
                 <div className="space-y-3 mt-3">
@@ -265,16 +318,16 @@ export default function PostDetailPage() {
                                 </p>
                                 {post.published_date && (
                                     <p className="text-xs text-roseTheme-dark/60">
-                                        {new Date(post.published_date).toLocaleDateString('ca-ES', { 
-                                            day: 'numeric', 
-                                            month: 'long', 
-                                            year: 'numeric' 
+                                        {new Date(post.published_date).toLocaleDateString('ca-ES', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric'
                                         })}
                                     </p>
                                 )}
                             </div>
                         </div>
-                        
+
                         {post.communities && post.communities.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {post.communities.map((community, idx) => (
@@ -340,22 +393,22 @@ export default function PostDetailPage() {
                                 </button>
                             )}
                         </div>
-                        
+
                         {/* Save */}
                         {user && (
                             <button
                                 onClick={() => toggleSavePost(post.id)}
                                 className={`flex items-center gap-2 transition-all ${
-                                    post.is_saved ? 'text-amber-600' : 'text-roseTheme-dark/60 hover:text-amber-600'
+                                    isSaved ? 'text-amber-600' : 'text-roseTheme-dark/60 hover:text-amber-600'
                                 }`}
                             >
-                                <svg className="w-5 h-5" fill={post.is_saved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                                 </svg>
-                                <span className="text-sm font-medium">{post.is_saved ? 'Desat' : 'Desar'}</span>
+                                <span className="text-sm font-medium">{isSaved ? 'Desat' : 'Desar'}</span>
                             </button>
                         )}
-                        
+
                         {/* Edit & Delete */}
                         {isOwner && (
                             <>
@@ -368,7 +421,7 @@ export default function PostDetailPage() {
                                     </svg>
                                     <span className="text-sm font-medium">Editar</span>
                                 </button>
-                                
+
                                 <button
                                     onClick={() => setShowDeleteConfirm(true)}
                                     className="flex items-center gap-2 text-red-600 hover:text-red-800 transition"
@@ -390,23 +443,41 @@ export default function PostDetailPage() {
                             Comentaris ({comments.length})
                         </h2>
 
-                        {/* Comment order selector */}
-                        {comments.length > 0 && (
-                            <div className="relative">
-                                <select
-                                    value={commentOrder}
-                                    onChange={(e) => setCommentOrder(e.target.value as CommentOrderType)}
-                                    className="appearance-none bg-white border-2 border-roseTheme-light rounded-lg px-4 py-2 pr-10 text-sm font-semibold text-roseTheme-dark hover:border-roseTheme focus:outline-none focus:border-roseTheme transition cursor-pointer"
+                        <div className="flex items-center gap-3">
+                            {/* Add comment button */}
+                            {user && (
+                                <button
+                                    onClick={() => {
+                                        setReplyingTo(null);
+                                        setShowCommentModal(true);
+                                    }}
+                                    className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-rose-600 hover:via-pink-600 hover:to-rose-700 transition shadow-md flex items-center gap-2"
                                 >
-                                    <option value="new">Més recents</option>
-                                    <option value="old">Més antics</option>
-                                    <option value="top">Més votats</option>
-                                </select>
-                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-roseTheme-dark pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
-                        )}
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Afegir comentari
+                                </button>
+                            )}
+
+                            {/* Comment order selector */}
+                            {comments.length > 0 && (
+                                <div className="relative">
+                                    <select
+                                        value={commentOrder}
+                                        onChange={(e) => setCommentOrder(e.target.value as CommentOrderType)}
+                                        className="appearance-none bg-white border-2 border-roseTheme-light rounded-lg px-4 py-2 pr-10 text-sm font-semibold text-roseTheme-dark hover:border-roseTheme focus:outline-none focus:border-roseTheme transition cursor-pointer"
+                                    >
+                                        <option value="new">Més recents</option>
+                                        <option value="old">Més antics</option>
+                                        <option value="top">Més votats</option>
+                                    </select>
+                                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-roseTheme-dark pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {comments.length === 0 ? (
@@ -470,6 +541,21 @@ export default function PostDetailPage() {
                     apiKey={user.apiKey}
                     onClose={() => setShowEditModal(false)}
                     onPostUpdated={handlePostUpdated}
+                />
+            )}
+
+            {/* Comment Modal */}
+            {showCommentModal && user?.apiKey && post && (
+                <CreateCommentModal
+                    postId={post.id}
+                    parentId={replyingTo?.id}
+                    parentAuthor={replyingTo?.author}
+                    apiKey={user.apiKey}
+                    onClose={() => {
+                        setShowCommentModal(false);
+                        setReplyingTo(null);
+                    }}
+                    onCommentCreated={handleCommentCreated}
                 />
             )}
         </div>
