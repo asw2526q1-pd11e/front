@@ -1,8 +1,13 @@
 // src/services/api.ts
 
-export const API_URL = "/api/blog/api";
-export const COMMUNITIES_API_URL = "/api/communities";
-export const ACCOUNTS_API_URL = "/api/accounts";
+// src/services/api.ts
+
+// En producció es fa servir VITE_API_BASE, en desenvolupament usa paths relatius (proxy de Vite)
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
+export const API_URL = `${API_BASE}/api/blog/api`;
+export const COMMUNITIES_API_URL = `${API_BASE}/api/communities`;
+export const ACCOUNTS_API_URL = `${API_BASE}/api/accounts`;
 
 // -------------------- TYPES --------------------
 
