@@ -5,6 +5,11 @@ export const COMMUNITIES_API_URL = "/api/communities";
 export const ACCOUNTS_API_URL = "/api/accounts";
 
 // -------------------- TYPES --------------------
+export interface PostCommunity {
+  id: number;
+  name: string;
+}
+
 
 export interface Post {
   id: number;
@@ -16,7 +21,7 @@ export interface Post {
   votes: number;
   url: string;
   image?: string | null;
-  communities?: string[];
+  communities?: (string | PostCommunity)[];
   is_saved?: boolean;
 }
 
@@ -32,7 +37,7 @@ export interface Comment {
   image?: string | null;
   replies?: Comment[];
   is_saved?: boolean;
-  user_vote?: number; // -1 = downvote, 0 = no vote, 1 = upvote
+  user_vote?: number;
 }
 
 export interface Community {
@@ -61,21 +66,6 @@ export interface SearchResponse {
   type: 'posts' | 'comments' | 'both';
   posts: Post[];
   comments: Comment[];
-}
-
-// -------------------- HELPER --------------------
-
-// Helper per afegir l'API key als headers
-function getAuthHeaders(apiKey?: string): HeadersInit {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey;
-  }
-
-  return headers;
 }
 
 // -------------------- POSTS --------------------
@@ -898,4 +888,39 @@ export async function toggleSaveComment(apiKey: string, commentId: number): Prom
 
   const result = await res.json();
   return result;
+}
+
+export function normalizeCommunities(communities?: (string | PostCommunity)[]): PostCommunity[] {
+  if (!communities) return [];
+
+  return communities.map(c => {
+    if (typeof c === 'string') {
+      // Si es un string, no tenemos el ID, así que devolvemos un objeto parcial
+      return { id: 0, name: c };
+    }
+    return c;
+  });
+}
+
+export async function getCommunityIdByName(apiKey: string, name: string): Promise<number | null> {
+  try {
+    const communities = await fetchCommunities(apiKey, 'all');
+    const found = communities.find(c => c.name.toLowerCase() === name.toLowerCase());
+    return found ? found.id : null;
+  } catch (error) {
+    console.error('Error fetching community by name:', error);
+    return null;
+  }
+}
+
+function getAuthHeaders(apiKey?: string): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+
+  return headers;
 }
