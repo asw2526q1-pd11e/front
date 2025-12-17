@@ -56,6 +56,13 @@ export interface UserProfile {
   api_key: string;
 }
 
+export interface SearchResponse {
+  query: string;
+  type: 'posts' | 'comments' | 'both';
+  posts: Post[];
+  comments: Comment[];
+}
+
 // -------------------- HELPER --------------------
 
 // Helper per afegir l'API key als headers
@@ -315,10 +322,16 @@ export async function fetchCommunityDetail(id: number, apiKey?: string): Promise
 
 // -------------------- SEARCH --------------------
 
-export async function searchPostsComments(query: string, type: 'posts' | 'comments' | 'both' = 'both', apiKey?: string) {
-  const res = await fetch(`${API_URL}/search/?q=${encodeURIComponent(query)}&type=${type}`, {
-    headers: getAuthHeaders(apiKey)
-  });
+export async function searchPostsComments(
+  query: string,
+  type: 'posts' | 'comments' | 'both' = 'both',
+  apiKey?: string
+): Promise<SearchResponse> {
+  const res = await fetch(
+    `${API_URL}/search/?q=${encodeURIComponent(query)}&type=${type}`,
+    { headers: getAuthHeaders(apiKey) }
+  );
+
   if (!res.ok) throw new Error("Failed to search posts/comments");
   return res.json();
 }
