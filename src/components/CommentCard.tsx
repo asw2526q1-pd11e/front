@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { upvoteComment, downvoteComment, deleteComment } from '../services/api';
+import { upvoteComment, downvoteComment, deleteComment, toggleSaveComment } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import EditCommentModal from './EditCommentModal';
 
 interface Comment {
     id: number;
@@ -25,7 +26,7 @@ interface Props {
     depth?: number;
     onReply?: (commentId: number, author: string) => void;
     onCommentDeleted?: (commentId: number) => void;
-    onCommentEdited?: (comment: Comment) => void;
+    onCommentUpdated?: (updatedComment: Comment) => void;
 }
 
 const CommentCard: React.FC<Props> = ({
@@ -33,19 +34,28 @@ const CommentCard: React.FC<Props> = ({
                                           depth = 0,
                                           onReply,
                                           onCommentDeleted,
-                                          onCommentEdited
+                                          onCommentUpdated
                                       }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [localComment, setLocalComment] = useState(comment);
     const [votes, setVotes] = useState(comment.votes);
     const [userVote, setUserVote] = useState<'up' | 'down' | null>(
         comment.user_vote === 1 ? 'up' : comment.user_vote === -1 ? 'down' : null
     );
     const [isVoting, setIsVoting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [editingComment, setEditingComment] = useState<Comment | null>(null);
+    const [isSaved, setIsSaved] = useState(comment.is_saved || false);
 
-    const isOwner = user && comment.author &&
-        (user as any).username?.toLowerCase() === comment.author.toLowerCase();
+    // Actualitzar l'estat local quan canvia el prop
+    useEffect(() => {
+        setLocalComment(comment);
+        setIsSaved(comment.is_saved || false);
+    }, [comment]);
+
+    const isOwner = user && localComment.author &&
+        (user as any).username?.toLowerCase() === localComment.author.toLowerCase();
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return "Sense data";
@@ -104,10 +114,7 @@ const CommentCard: React.FC<Props> = ({
     const handleEdit = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-
-        if (onCommentEdited) {
-            onCommentEdited(comment);
-        }
+        setEditingComment(localComment);
     };
 
     const handleDelete = async (e: React.MouseEvent) => {
@@ -141,6 +148,23 @@ const CommentCard: React.FC<Props> = ({
         e.stopPropagation();
         if (comment.author_id) {
             navigate(`/users/${comment.author_id}`);
+        }
+    };
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!user?.apiKey) return;
+
+        try {
+            const result = await toggleSaveComment(user.apiKey, comment.id);
+            setIsSaved(result.saved);
+
+            // Actualitzar també el comentari local
+            setLocalComment(prev => ({ ...prev, is_saved: result.saved }));
+        } catch (error) {
+            console.error('Error guardant comentari:', error);
         }
     };
 
@@ -242,14 +266,14 @@ const CommentCard: React.FC<Props> = ({
 
                             {/* Contingut */}
                             <p className="text-roseTheme-dark/80 mb-3 whitespace-pre-wrap leading-relaxed">
-                                {comment.content}
+                                {localComment.content}
                             </p>
 
                             {/* Imatge */}
-                            {comment.image && (
+                            {localComment.image && (
                                 <div className="rounded-lg overflow-hidden border-2 border-roseTheme-light mb-3 shadow-sm">
                                     <img
-                                        src={comment.image}
+                                        src={localComment.image}
                                         alt="Comment"
                                         className="w-full object-cover max-h-64"
                                     />
@@ -259,13 +283,33 @@ const CommentCard: React.FC<Props> = ({
                             {/* Accions */}
                             <div className="flex items-center gap-3 text-roseTheme-dark/60 text-sm">
                                 {/* Comptador de respostes */}
-                                {comment.replies && comment.replies.length > 0 && (
+                                {localComment.replies && localComment.replies.length > 0 && (
                                     <span className="flex items-center gap-1 text-xs text-roseTheme-dark/50">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                         </svg>
-                                        {comment.replies.length} {comment.replies.length === 1 ? 'resposta' : 'respostes'}
+                                        {localComment.replies.length} {localComment.replies.length === 1 ? 'resposta' : 'respostes'}
                                     </span>
+                                )}
+
+                                {/* Guardar */}
+                                {user && (
+                                    <button
+                                        onClick={handleSave}
+                                        className={`flex items-center gap-2 transition-all group/btn ${
+                                            isSaved ? 'text-amber-600' : 'hover:text-amber-600'
+                                        }`}
+                                        title={isSaved ? "Desguardar" : "Guardar"}
+                                    >
+                                        <div className={`rounded-full p-1.5 transition-all group-hover/btn:scale-110 ${
+                                            isSaved ? 'bg-amber-100' : 'group-hover/btn:bg-amber-100'
+                                        }`}>
+                                            <svg className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                            </svg>
+                                        </div>
+                                        <span className="font-medium">{isSaved ? 'Desat' : 'Desar'}</span>
+                                    </button>
                                 )}
 
                                 {/* Respondre */}
@@ -325,21 +369,48 @@ const CommentCard: React.FC<Props> = ({
                 </article>
 
                 {/* Renderitzar respostes recursivament */}
-                {comment.replies && comment.replies.length > 0 && (
+                {localComment.replies && localComment.replies.length > 0 && (
                     <div className="space-y-3 mt-3">
-                        {comment.replies.map(reply => (
+                        {localComment.replies.map(reply => (
                             <CommentCard
                                 key={reply.id}
                                 comment={reply}
                                 depth={depth + 1}
                                 onReply={onReply}
                                 onCommentDeleted={onCommentDeleted}
-                                onCommentEdited={onCommentEdited}
+                                onCommentUpdated={onCommentUpdated}
                             />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Modal d'edició */}
+            {editingComment && user?.apiKey && (
+                <EditCommentModal
+                    comment={editingComment}
+                    apiKey={user.apiKey}
+                    onClose={() => setEditingComment(null)}
+                    onCommentUpdated={(updatedComment) => {
+                        // Mantenir les respostes existents i el vot de l'usuari
+                        const commentWithReplies = {
+                            ...updatedComment,
+                            replies: localComment.replies,
+                            user_vote: localComment.user_vote
+                        };
+
+                        // Actualitzar l'estat local immediatament
+                        setLocalComment(commentWithReplies);
+
+                        // Propagar l'actualització al component pare
+                        if (onCommentUpdated) {
+                            onCommentUpdated(commentWithReplies);
+                        }
+
+                        setEditingComment(null);
+                    }}
+                />
+            )}
 
             {/* Modal de confirmació d'eliminació */}
             {showDeleteConfirm && createPortal(
@@ -369,7 +440,7 @@ const CommentCard: React.FC<Props> = ({
                             </p>
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
                                 <p className="text-sm text-red-800 line-clamp-3">
-                                    "{comment.content}"
+                                    "{localComment.content}"
                                 </p>
                             </div>
                         </div>
