@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchCommunities, type Community } from '../services/api';
+import { fetchCommunities, fetchSubscribedCommunities, type Community } from '../services/api';
 import CommunityCard from '../components/CommunityCard';
 import { useAuth } from '../hooks/useAuth';
 import CreateCommunityModal from '../components/CreateCommunityModal';
@@ -15,20 +15,50 @@ const ComunitatsPage = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const { user } = useAuth();
 
-  const loadCommunities = (filter: FilterType = activeFilter) => {
+  const loadCommunities = async (filter: FilterType = activeFilter) => {
     setLoading(true);
     setError(null);
     
-    fetchCommunities(user?.apiKey || '', filter)
-      .then(data => {
-        setCommunities(data);
-        setError(null);
-      })
-      .catch(err => {
-        console.error("Error fetching communities:", err);
-        setError(err.message || "No s'han pogut carregar les comunitats");
-      })
-      .finally(() => setLoading(false));
+    try {
+      const communities = await fetchCommunities(user?.apiKey || '', filter);
+      
+      // If user is authenticated, check which communities they're subscribed to
+      if (user?.apiKey) {
+        try {
+          const subscribedCommunities = await fetchSubscribedCommunities(user.apiKey);
+          
+          // Ensure subscribedCommunities is an array
+          if (!Array.isArray(subscribedCommunities)) {
+            console.error('subscribedCommunities is not an array:', subscribedCommunities);
+            setCommunities(communities);
+            return;
+          }
+          
+          const subscribedIds = new Set(subscribedCommunities.map(c => c.id));
+          
+          // Mark communities as subscribed
+          const communitiesWithStatus = communities.map(community => ({
+            ...community,
+            is_subscribed: subscribedIds.has(community.id)
+          }));
+          
+          setCommunities(communitiesWithStatus);
+        } catch (subscriptionError: any) {
+          console.error('Error fetching subscribed communities:', subscriptionError);
+          // If we can't fetch subscription status, just show communities without status
+          setCommunities(communities);
+        }
+      } else {
+        setCommunities(communities);
+      }
+      
+      setError(null);
+    } catch (err: any) {
+      console.error("Error fetching communities:", err);
+      setError(err.message || "No s'han pogut carregar les comunitats");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -187,7 +217,12 @@ const ComunitatsPage = () => {
       ) : (
         <div className="grid gap-4">
           {filteredCommunities.map(community => (
-            <CommunityCard key={community.id} community={community} />
+            <CommunityCard 
+              key={community.id} 
+              community={community}
+              apiKey={user?.apiKey}
+              onSubscriptionChanged={() => loadCommunities()}
+            />
           ))}
         </div>
       )}

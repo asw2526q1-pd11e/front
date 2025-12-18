@@ -10,17 +10,23 @@ export const COMMUNITIES_API_URL = `${API_BASE}/api/communities`;
 export const ACCOUNTS_API_URL = `${API_BASE}/api/accounts`;
 
 // -------------------- TYPES --------------------
+export interface PostCommunity {
+  id: number;
+  name: string;
+}
+
 
 export interface Post {
   id: number;
   title: string;
   content: string;
   author?: string;
+  author_id?: number;
   published_date?: string;
   votes: number;
   url: string;
   image?: string | null;
-  communities?: string[];
+  communities?: (string | PostCommunity)[];
   is_saved?: boolean;
 }
 
@@ -36,6 +42,7 @@ export interface Comment {
   image?: string | null;
   replies?: Comment[];
   is_saved?: boolean;
+  user_vote?: number;
 }
 
 export interface Community {
@@ -46,9 +53,11 @@ export interface Community {
   subs_count: number;
   posts_count: number;
   comments_count: number;
+  is_subscribed?: boolean;
 }
 
 export interface UserProfile {
+  user_id: number;
   username: string;
   nombre: string;
   bio: string;
@@ -57,19 +66,11 @@ export interface UserProfile {
   api_key: string;
 }
 
-// -------------------- HELPER --------------------
-
-// Helper per afegir l'API key als headers
-function getAuthHeaders(apiKey?: string): HeadersInit {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey;
-  }
-
-  return headers;
+export interface SearchResponse {
+  query: string;
+  type: 'posts' | 'comments' | 'both';
+  posts: Post[];
+  comments: Comment[];
 }
 
 // -------------------- POSTS --------------------
@@ -316,10 +317,16 @@ export async function fetchCommunityDetail(id: number, apiKey?: string): Promise
 
 // -------------------- SEARCH --------------------
 
-export async function searchPostsComments(query: string, type: 'posts' | 'comments' | 'both' = 'both', apiKey?: string) {
-  const res = await fetch(`${API_URL}/search/?q=${encodeURIComponent(query)}&type=${type}`, {
-    headers: getAuthHeaders(apiKey)
-  });
+export async function searchPostsComments(
+  query: string,
+  type: 'posts' | 'comments' | 'both' = 'both',
+  apiKey?: string
+): Promise<SearchResponse> {
+  const res = await fetch(
+    `${API_URL}/search/?q=${encodeURIComponent(query)}&type=${type}`,
+    { headers: getAuthHeaders(apiKey) }
+  );
+
   if (!res.ok) throw new Error("Failed to search posts/comments");
   return res.json();
 }
@@ -394,6 +401,7 @@ export async function fetchUserPosts(apiKey: string): Promise<Post[]> {
     title: post.title,
     content: post.content,
     author: post.author_name || post.author,
+    author_id: post.author_id,
     author_bio: post.author_bio,
     published_date: post.published_date,
     votes: post.votes,
@@ -427,6 +435,7 @@ export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
     title: post.title,
     content: post.content,
     author: post.author_name || post.author,
+    author_id: post.author_id,
     author_bio: post.author_bio,
     published_date: post.published_date,
     votes: post.votes,
@@ -440,36 +449,6 @@ export async function fetchSavedPosts(apiKey: string): Promise<Post[]> {
 }
 
 
-// -------------------- USER COMMENTS --------------------
-
-export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
-  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/comments/`, {
-    headers: getAuthHeaders(apiKey)
-  });
-  if (!res.ok) {
-    if (res.status === 404) {
-      return [];
-    }
-    throw new Error("Failed to fetch user comments");
-  }
-  const comments = await res.json();
-
-  const mappedComments = comments.map((comment: any) => ({
-    id: comment.id,
-    post: comment.post,
-    parent: comment.parent,
-    content: comment.content,
-    author: comment.author,
-    published_date: comment.published_date,
-    votes: comment.votes,
-    url: comment.url,
-    image: comment.image,
-    is_saved: comment.is_saved ?? false,
-  }));
-
-  return mappedComments;
-}
-
 // -------------------- SAVED POSTS --------------------
 
 export async function toggleSavePost(apiKey: string, postId: number): Promise<{ saved: boolean }> {
@@ -479,24 +458,9 @@ export async function toggleSavePost(apiKey: string, postId: number): Promise<{ 
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
     throw new Error("Failed to toggle save post");
   }
 
-  const result = await res.json();
-  return result;
-}
-
-// -------------------- SAVED COMMENTS --------------------
-
-export async function toggleSaveComment(apiKey: string, commentId: number): Promise<{ saved: boolean }> {
-  const res = await fetch(`${ACCOUNTS_API_URL}/api/comments/${commentId}/toggle_saved/`, {
-    method: 'POST',
-    headers: getAuthHeaders(apiKey)
-  });
-  if (!res.ok) {
-    throw new Error("Failed to toggle save comment");
-  }
   const result = await res.json();
   return result;
 }
@@ -508,7 +472,17 @@ export async function fetchSubscribedCommunities(apiKey: string): Promise<Commun
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch subscribed communities");
-  return res.json();
+  
+  const data = await res.json();
+  
+  // Handle the same response format as fetchCommunities
+  if (Array.isArray(data)) {
+    return data;
+  } else if (data && Array.isArray(data.communities)) {
+    return data.communities;
+  } else {
+    return [];
+  }
 }
 
 export async function fetchCommunities(apiKey: string, filter: 'all' | 'subscribed' | 'local' = 'all'): Promise<Community[]> {
@@ -588,4 +562,370 @@ export async function fetchCommunityPosts(communityId: number, apiKey?: string):
   }
 
   return res.json();
+}
+
+// -------------------- COMMENT VOTING --------------------
+
+export async function upvoteComment(apiKey: string, commentId: number): Promise<{ votes: number; user_vote: number }> {
+  const res = await fetch(`${API_URL}/comments/${commentId}/upvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to upvote comment");
+  return res.json();
+}
+
+export async function downvoteComment(apiKey: string, commentId: number): Promise<{ votes: number; user_vote: number }> {
+  const res = await fetch(`${API_URL}/comments/${commentId}/downvote/`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to downvote comment");
+  return res.json();
+}
+
+// -------------------- COMMUNITY SUBSCRIPTION --------------------
+
+export async function subscribeToCommunity(apiKey: string, communityId: number): Promise<{ message: string }> {
+  const url = `${COMMUNITIES_API_URL}/api/communities/${communityId}/subscribe/`;
+  console.log('Subscribing to community, URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    console.log('Subscribe response status:', res.status, res.statusText);
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut subscriure`);
+  }
+
+  return res.json();
+}
+
+export async function unsubscribeFromCommunity(apiKey: string, communityId: number): Promise<{ message: string }> {
+  const url = `${COMMUNITIES_API_URL}/api/communities/${communityId}/unsubscribe/`;
+  console.log('Unsubscribing from community, URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    console.log('Unsubscribe response status:', res.status, res.statusText);
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut donar de baixa`);
+  }
+
+  return res.json();
+}
+
+// Alternative subscription functions with different URL patterns
+export async function subscribeToCommunityAlt(apiKey: string, communityId: number): Promise<{ message: string }> {
+  // Try pattern that matches fetchCommunityDetail
+  const url = `${COMMUNITIES_API_URL}/communities/${communityId}/subscribe/`;
+  console.log('Alternative subscribe URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut subscriure`);
+  }
+
+  return res.json();
+}
+
+export async function unsubscribeFromCommunityAlt(apiKey: string, communityId: number): Promise<{ message: string }> {
+  // Try pattern that matches fetchCommunityDetail
+  const url = `${COMMUNITIES_API_URL}/communities/${communityId}/unsubscribe/`;
+  console.log('Alternative unsubscribe URL:', url);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.detail || `Error ${res.status}: No s'ha pogut donar de baixa`);
+  }
+
+  return res.json();
+}
+
+// -------------------- OTHER USER PROFILE --------------------
+
+export async function fetchOtherUserProfile(apiKey: string, userId: number): Promise<UserProfile> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/${userId}/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+  if (!res.ok) throw new Error("Failed to fetch user profile");
+  return res.json();
+}
+
+export async function fetchOtherUserPosts(apiKey: string, userId: number): Promise<Post[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/${userId}/posts/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch user posts");
+  }
+
+  const posts = await res.json();
+
+  const mappedPosts = posts.map((post: any) => ({
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    author: post.author_name || post.author,
+    author_id: post.author_id,
+    author_bio: post.author_bio,
+    published_date: post.published_date,
+    votes: post.votes,
+    url: post.url,
+    image: post.image_url || null,
+    communities: post.communities || [],
+    is_saved: post.is_saved ?? false,
+  }));
+
+  return mappedPosts;
+}
+
+export async function fetchOtherUserComments(apiKey: string, userId: number): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/${userId}/comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch user comments");
+  }
+
+  const comments = await res.json();
+
+  const mappedComments = comments.map((comment: any) => ({
+    id: comment.id,
+    post: comment.post,
+    parent: comment.parent,
+    content: comment.content,
+    author: comment.author,
+    published_date: comment.published_date,
+    votes: comment.votes,
+    url: comment.url,
+    image: comment.image,
+    is_saved: comment.is_saved ?? false,
+  }));
+
+  return mappedComments;
+}
+
+export const updateComment = async (apiKey: string, commentId: number, content: string, image?: File | null) => {
+  const formData = new FormData();
+  formData.append('content', content);
+
+  if (image instanceof File) {
+    formData.append('image', image);
+  }
+
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  const response = await fetch(`${baseUrl}/comments/${commentId}/edit/`, {
+    method: 'PUT',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Error actualitzant el comentari');
+  }
+
+  return response.json();
+};
+
+export const deleteComment = async (apiKey: string, commentId: number) => {
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  const response = await fetch(`${baseUrl}/comments/${commentId}/delete/`, {
+    method: 'DELETE',
+    headers: {
+      'X-API-Key': apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error eliminant el comentari');
+  }
+
+  if (response.status === 204) {
+    return { success: true };
+  }
+
+  return response.json();
+};
+
+export async function checkCommunitySubscription(apiKey: string, communityId: number): Promise<{ is_subscribed: boolean }> {
+  const res = await fetch(`/api/communities/${communityId}/subscription-status/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    // If endpoint doesn't exist, we'll determine from other API calls
+    return { is_subscribed: false };
+  }
+
+  return res.json();
+}
+
+// -------------------- UTILITY FUNCTIONS --------------------
+
+export async function isUserSubscribedToCommunity(apiKey: string, communityId: number): Promise<boolean> {
+  try {
+    const subscribedCommunities = await fetchSubscribedCommunities(apiKey);
+    
+    // Ensure it's an array before using array methods
+    if (!Array.isArray(subscribedCommunities)) {
+      console.error('fetchSubscribedCommunities did not return an array:', subscribedCommunities);
+      return false;
+    }
+    
+    return subscribedCommunities.some(community => community.id === communityId);
+  } catch (error) {
+    console.error('Error checking subscription status:', error);
+    return false;
+  }
+}
+
+// -------------------- USER COMMENTS --------------------
+
+export async function fetchUserComments(apiKey: string): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch user comments");
+  }
+
+  const comments = await res.json();
+
+  const mappedComments = comments.map((comment: any) => ({
+    id: comment.id,
+    post: comment.post,
+    parent: comment.parent,
+    content: comment.content,
+    author: comment.author,
+    author_id: comment.author_id,
+    published_date: comment.published_date,
+    votes: comment.votes,
+    url: comment.url,
+    image: comment.image,
+    is_saved: comment.is_saved ?? false,
+    user_vote: comment.user_vote,
+  }));
+
+  return mappedComments;
+}
+
+// -------------------- SAVED COMMENTS --------------------
+
+export async function fetchSavedComments(apiKey: string): Promise<Comment[]> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/users/me/saved-comments/`, {
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return [];
+    }
+    throw new Error("Failed to fetch saved comments");
+  }
+
+  const comments = await res.json();
+
+  const mappedComments = comments.map((comment: any) => ({
+    id: comment.id,
+    post: comment.post,
+    parent: comment.parent,
+    content: comment.content,
+    author: comment.author,
+    author_id: comment.author_id,
+    published_date: comment.published_date,
+    votes: comment.votes,
+    url: comment.url,
+    image: comment.image,
+    is_saved: true,
+    user_vote: comment.user_vote,
+  }));
+
+  return mappedComments;
+}
+
+// -------------------- TOGGLE SAVE COMMENT --------------------
+
+export async function toggleSaveComment(apiKey: string, commentId: number): Promise<{ saved: boolean }> {
+  const res = await fetch(`${ACCOUNTS_API_URL}/api/comments/${commentId}/toggle_saved/`, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey)
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to toggle save comment");
+  }
+
+  const result = await res.json();
+  return result;
+}
+
+export function normalizeCommunities(communities?: (string | PostCommunity)[]): PostCommunity[] {
+  if (!communities) return [];
+
+  return communities.map(c => {
+    if (typeof c === 'string') {
+      // Si es un string, no tenemos el ID, así que devolvemos un objeto parcial
+      return { id: 0, name: c };
+    }
+    return c;
+  });
+}
+
+export async function getCommunityIdByName(apiKey: string, name: string): Promise<number | null> {
+  try {
+    const communities = await fetchCommunities(apiKey, 'all');
+    const found = communities.find(c => c.name.toLowerCase() === name.toLowerCase());
+    return found ? found.id : null;
+  } catch (error) {
+    console.error('Error fetching community by name:', error);
+    return null;
+  }
+}
+
+function getAuthHeaders(apiKey?: string): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
+  }
+
+  return headers;
 }
