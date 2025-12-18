@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { UserProfile } from '../services/api';
+import { fetchUserProfile } from '../services/api';
+
 
 interface EditProfileModalProps {
     profile: UserProfile;
@@ -107,10 +109,13 @@ const EditProfileModal = ({ profile, apiKey, onClose, onSave }: EditProfileModal
                 throw new Error(errorData?.detail || errorData?.error || `Error ${response.status}: ${response.statusText}`);
             }
 
-            const updatedProfile = await response.json();
-            console.log('Perfil actualitzat:', updatedProfile);
-            onSave(updatedProfile);
+            const freshProfile = await fetchUserProfile(apiKey);
+
+            console.log('Perfil actualitzat:', freshProfile);
+            onSave(freshProfile);
             onClose();
+
+
         } catch (err) {
             console.error('Error complet:', err);
             setError(err instanceof Error ? err.message : 'Error desconegut');
