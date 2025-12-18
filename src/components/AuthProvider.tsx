@@ -8,6 +8,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
+  // Función para cargar el perfil del backend
+  const loadUserProfile = async (apiKey: string) => {
+    try {
+      const profile = await fetchUserProfile(apiKey);
+      console.log('✅ Backend user info:', profile);
+      setUserProfile(profile);
+      return profile;
+    } catch (err) {
+      console.error('⚠️ Error loading profile:', err);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -15,14 +28,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
 
-        fetchUserProfile(parsedUser.apiKey)
-            .then(profile => {
-              console.log('✅ Backend user info:', profile);
-              setUserProfile(profile);
-            })
-            .catch(err => {
-              console.error('⚠️ API key might be invalid:', err);
-            });
+        // Cargar el perfil del backend
+        loadUserProfile(parsedUser.apiKey);
       }, 0);
     }
   }, []);
@@ -32,14 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('currentUser', JSON.stringify(user));
     console.log('✅ Login successful:', user.name, 'API Key:', user.apiKey);
 
-    fetchUserProfile(user.apiKey)
-        .then(profile => {
-          console.log('✅ Backend user info:', profile);
-          setUserProfile(profile);
-        })
-        .catch(err => {
-          console.error('❌ Failed to fetch user profile:', err);
-        });
+    // Cargar perfil del backend
+    loadUserProfile(user.apiKey);
   };
 
   const logout = () => {
@@ -49,17 +50,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('👋 Logout successful');
   };
 
+  // Función pública para refrescar el perfil
+  const refreshProfile = async () => {
+    if (user?.apiKey) {
+      const profile = await loadUserProfile(user.apiKey);
+      return profile;
+    }
+    return null;
+  };
+
   const isAuthenticated = !!user;
 
+  // Combinar user local con userProfile del backend
   const enrichedUser = user ? {
     ...user,
+    // Mantener el avatar original (emoji)
     avatar: user.avatar,
+    // Agregar nuevos campos del backend
     username: userProfile?.username || user.name,
     nombre: userProfile?.nombre || user.name,
     bio: userProfile?.bio || '',
     avatarUrl: userProfile?.avatar, // URL de S3 en un campo separado
     banner: userProfile?.banner,
     user_id: userProfile?.user_id,
+    // Agregar la función de refresh al objeto user
+    refreshProfile,
   } : null;
 
   return (

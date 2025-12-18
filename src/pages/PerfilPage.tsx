@@ -34,22 +34,28 @@ const PerfilPage = () => {
   const [subscribedCommunities, setSubscribedCommunities] = useState<Community[]>([]);
 
   useEffect(() => {
-    if (!user?.apiKey) return;
-
-    fetchUserProfile(user.apiKey)
-      .then(data => {
-        setProfile(data);
-        setError(null);
-      })
-      .catch(err => {
-        setError(err.message || "No s'ha pogut carregar el perfil");
-      })
-      .finally(() => setLoading(false));
+    if (user?.apiKey) {
+      fetchUserProfile(user.apiKey)
+          .then(data => {
+            setProfile(data);
+            setError(null);
+          })
+          .catch(err => {
+            setError(err.message || "No s'ha pogut carregar el perfil");
+          })
+          .finally(() => setLoading(false));
     }
-  , [user?.apiKey]);
+  }, [user]);
 
-  const handleProfileUpdate = (updatedProfile: UserProfile) => {
+  const handleProfileUpdate = async (updatedProfile: UserProfile) => {
+    // Actualizar el estado local
     setProfile(updatedProfile);
+
+    // Refrescar el perfil en el AuthProvider para que se actualice en el Navbar
+    if (user?.refreshProfile) {
+      await user.refreshProfile();
+      console.log('✅ Perfil actualitzat al AuthProvider');
+    }
   };
 
   const loadSubscribedCommunities = async () => {
@@ -95,10 +101,7 @@ const PerfilPage = () => {
 
     setLoadingSaved(true);
     try {
-      // Primer refrescar l'estat global
       await refreshSavedPosts();
-
-      // Després carregar els posts guardats per mostrar-los
       const posts = await fetchSavedPosts(user.apiKey);
       setSavedPosts(posts);
     } catch (err) {
@@ -119,10 +122,7 @@ const PerfilPage = () => {
 
     setLoadingSavedComments(true);
     try {
-      // Primer refrescar l'estat global
       await refreshSavedComments();
-
-      // Després carregar els comentaris guardats per mostrar-los
       const comments = await fetchSavedComments(user.apiKey);
       setSavedComments(comments);
     } catch (err) {
@@ -194,7 +194,6 @@ const PerfilPage = () => {
     }
   };
 
-  // Handler per actualitzar un comentari
   const handleCommentUpdated = (updatedComment: Comment) => {
     setUserComments(prevComments =>
         prevComments.map(c =>
@@ -203,7 +202,6 @@ const PerfilPage = () => {
     );
   };
 
-  // Handler per eliminar un comentari
   const handleCommentDeleted = (commentId: number) => {
     setUserComments(prevComments =>
         prevComments.filter(c => c.id !== commentId)
@@ -213,9 +211,7 @@ const PerfilPage = () => {
     );
   };
 
-  // Handler per quan es desguarda un comentari
   const handleCommentUnsaved = (commentId: number) => {
-    // Eliminar de la llista de comentaris guardats
     setSavedComments(prevComments =>
         prevComments.filter(c => c.id !== commentId)
     );
