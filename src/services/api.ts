@@ -376,7 +376,11 @@ export async function updateUserProfile(
   });
 
   if (!res.ok) throw new Error("Failed to update user profile");
-  return res.json();
+  try {
+    return await res.json();
+  } catch {
+    return fetchUserProfile(apiKey);
+  }
 }
 
 // -------------------- USER POSTS --------------------
