@@ -4,7 +4,6 @@ import { useSavedPosts } from '../context/SavedPostContext';
 import { useSavedComments } from '../context/SavedCommentContext';
 import { fetchUserProfile, fetchUserPosts, fetchUserComments,
   fetchSavedPosts, fetchSavedComments, fetchSubscribedCommunities,
-  toggleSavePost as apiToggleSavePost,
   type UserProfile, type Post, type Comment, type Community } from '../services/api';
 import EditProfileModal from '../components/EditPerfilPage';
 import EditPostModal from '../components/EditPostModal';
@@ -12,8 +11,8 @@ import PostCard from '../components/PostCard';
 import CommentCard from '../components/CommentCard';
 
 const PerfilPage = () => {
-  const { user } = useAuth(); // Eliminado logout
-  const { togglePostSaved, refreshSavedPosts } = useSavedPosts();
+  const { user } = useAuth();
+  const { refreshSavedPosts } = useSavedPosts();
   const { refreshSavedComments } = useSavedComments();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
@@ -89,30 +88,6 @@ const PerfilPage = () => {
       loadUserPosts();
     }
   }, [showMyPosts, user?.apiKey]);
-
-  const toggleSavePost = async (postId: number) => {
-    if (!user?.apiKey) return;
-
-    try {
-      const result = await apiToggleSavePost(user.apiKey, postId);
-
-      // Actualitzar l'estat global
-      togglePostSaved(postId, result.saved);
-
-      // Actualitzar l'estat local de userPosts
-      setUserPosts(prevPosts =>
-          prevPosts.map(post =>
-              post.id === postId ? { ...post, is_saved: result.saved } : post
-          )
-      );
-
-      // Si estem mostrant posts guardats, recarregar
-      if (showSaved) {
-        loadSavedContent();
-      }
-    } catch (err) {
-    }
-  };
 
   const loadSavedContent = async () => {
     if (!user?.apiKey) return;
@@ -370,7 +345,7 @@ const PerfilPage = () => {
               </div>
             </div>
 
-            {/* Accions - SIN BOTÓN DE CERRAR SESIÓN */}
+            {/* Accions */}
             <div className="grid grid-cols-2 gap-3">
               <button
                   onClick={handleShowMyPosts}

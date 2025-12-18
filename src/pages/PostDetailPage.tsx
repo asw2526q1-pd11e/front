@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { fetchPostDetail, fetchPostCommentsTree, toggleSavePost as apiToggleSavePost, upvotePost, downvotePost, deletePost, upvoteComment, downvoteComment } from "../services/api";
+import { 
+    fetchPostDetail, 
+    fetchPostCommentsTree, 
+    toggleSavePost as apiToggleSavePost, 
+    upvotePost, 
+    downvotePost, 
+    deletePost, 
+    type Post as ApiPost 
+} from "../services/api";
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
 import EditPostModal from '../components/EditPostModal';
@@ -40,6 +48,13 @@ interface Comment {
 
 type CommentOrderType = 'new' | 'old' | 'top';
 
+const convertApiPostToLocal = (apiPost: ApiPost): Post => {
+    return {
+        ...apiPost,
+        communities: apiPost.communities?.map(c => typeof c === 'string' ? c : c.name)
+    };
+};
+
 export default function PostDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -70,7 +85,7 @@ export default function PostDetailPage() {
             try {
                 setLoading(true);
                 const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
-                setPost(postData);
+                setPost(convertApiPostToLocal(postData));
                 const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
                 setComments(commentsData);
                 setError(null);
@@ -140,7 +155,7 @@ export default function PostDetailPage() {
         const loadPostDetail = async () => {
             try {
                 const postData = await fetchPostDetail(parseInt(id), user?.apiKey);
-                setPost(postData);
+                setPost(convertApiPostToLocal(postData));
             } catch (err) {
                 console.error("Error reloading post:", err);
             }
@@ -161,7 +176,7 @@ export default function PostDetailPage() {
         }
     };
 
-    const handleCommentDeleted = async (commentId: number) => {
+    const handleCommentDeleted = async () => {
         if (!id) return;
         try {
             const commentsData = await fetchPostCommentsTree(parseInt(id), user?.apiKey, commentOrder);
@@ -169,10 +184,6 @@ export default function PostDetailPage() {
         } catch (err) {
             console.error("Error reloading comments:", err);
         }
-    };
-
-    const handleCommentEdited = (comment: Comment) => {
-        setEditingComment(comment);
     };
 
     const handleCommentUpdated = async () => {
@@ -246,7 +257,6 @@ export default function PostDetailPage() {
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-8">
             <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* Breadcrumb */}
                 <div className="mb-6">
                     <Link to="/" className="text-roseTheme-dark hover:underline flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,9 +266,7 @@ export default function PostDetailPage() {
                     </Link>
                 </div>
 
-                {/* Post Card */}
                 <div className="bg-white border-2 border-roseTheme-light rounded-xl p-6 mb-6 shadow-lg">
-                    {/* Author and metadata */}
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                         <div className="flex items-center gap-3">
                             <div
@@ -301,24 +309,20 @@ export default function PostDetailPage() {
                         )}
                     </div>
 
-                    {/* Title */}
                     <h1 className="text-3xl font-bold text-roseTheme-dark mb-4">
                         {post.title}
                     </h1>
 
-                    {/* Image */}
                     {post.image && (
                         <div className="mb-6 rounded-xl overflow-hidden">
                             <img src={post.image} alt={post.title} className="w-full" />
                         </div>
                     )}
 
-                    {/* Content */}
                     <div className="text-roseTheme-dark/80 leading-relaxed mb-6 whitespace-pre-wrap">
                         {post.content}
                     </div>
 
-                    {/* External URL */}
                     {post.url && !post.url.includes(`/blog/posts/${post.id}/`) && (
                         <a
                             href={post.url}
@@ -332,10 +336,8 @@ export default function PostDetailPage() {
                             Veure més
                         </a>
                     )}
-
-                    {/* Actions */}
+                    
                     <div className="flex items-center gap-6 border-t border-roseTheme-light pt-4 flex-wrap">
-                        {/* Votes */}
                         <div className="flex items-center gap-2">
                             {user && (
                                 <button
@@ -393,7 +395,6 @@ export default function PostDetailPage() {
                             )}
                         </div>
 
-                        {/* Save */}
                         {user && (
                             <button
                                 onClick={() => toggleSavePost(post.id)}
@@ -408,7 +409,6 @@ export default function PostDetailPage() {
                             </button>
                         )}
 
-                        {/* Edit & Delete */}
                         {isOwner && (
                             <>
                                 <button
@@ -435,7 +435,6 @@ export default function PostDetailPage() {
                     </div>
                 </div>
 
-                {/* Comments Section */}
                 <div className="bg-white border-2 border-roseTheme-light rounded-xl p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                         <h2 className="text-2xl font-bold text-roseTheme-dark">
@@ -493,7 +492,7 @@ export default function PostDetailPage() {
                                     comment={comment}
                                     onReply={handleReply}
                                     onCommentDeleted={handleCommentDeleted}
-                                    onCommentEdited={handleCommentEdited}
+                                    onCommentUpdated={handleCommentUpdated}
                                 />
                             ))}
                         </div>
@@ -501,7 +500,6 @@ export default function PostDetailPage() {
                 </div>
             </div>
 
-            {/* Delete Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
@@ -536,7 +534,6 @@ export default function PostDetailPage() {
                     </div>
                 </div>
             )}
-
 
             {showEditModal && user?.apiKey && post && (
                 <EditPostModal

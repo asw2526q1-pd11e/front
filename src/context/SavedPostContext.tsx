@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { fetchSavedPosts } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -29,7 +30,9 @@ export const SavedPostsProvider: React.FC<{ children: ReactNode }> = ({ children
             const posts = await fetchSavedPosts(user.apiKey);
             const postIds = posts.map(post => post.id);
             setSavedPostIds(new Set(postIds));
+            console.log('💾 Posts guardats carregats:', postIds);
         } catch (error) {
+            console.error('Error carregant posts guardats:', error);
             setSavedPostIds(new Set());
         } finally {
             setIsLoading(false);
@@ -50,9 +53,12 @@ export const SavedPostsProvider: React.FC<{ children: ReactNode }> = ({ children
             const newSet = new Set(prev);
             if (saved) {
                 newSet.add(postId);
+                console.log('➕ Post guardat:', postId);
             } else {
                 newSet.delete(postId);
+                console.log('➖ Post desguardat:', postId);
             }
+            console.log('📊 Total posts guardats:', newSet.size);
             return newSet;
         });
     }, []);

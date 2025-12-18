@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchPosts } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
-import { useSavedPosts } from '../context/SavedPostContext';
 import CreatePostModal from '../components/CreatePostModal';
 import EditPostModal from '../components/EditPostModal';
 import PostCard from '../components/PostCard';
@@ -19,7 +18,6 @@ export default function PostsPage() {
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [activeOrder, setActiveOrder] = useState<OrderType>('new');
     const { user } = useAuth();
-    const { isLoading: savedPostsLoading } = useSavedPosts();
 
     const loadPosts = () => {
         setLoading(true);
@@ -49,9 +47,6 @@ export default function PostsPage() {
         setEditingPost(null);
     };
 
-    const handleEditPost = (post: Post) => {
-        setEditingPost(post);
-    };
 
     if (loading) {
         return (
