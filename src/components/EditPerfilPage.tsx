@@ -1,20 +1,34 @@
-import { useState } from 'react';
+import { useState, ChangeEvent, FormEvent } from 'react';
 
-const EditProfileModal = ({ profile, apiKey, onClose, onSave }) => {
+interface Profile {
+    nombre: string;
+    bio: string;
+    avatar?: string;
+    banner?: string;
+}
+
+interface EditProfileModalProps {
+    profile: Profile;
+    apiKey: string;
+    onClose: () => void;
+    onSave: (profile: Profile) => void;
+}
+
+const EditProfileModal = ({ profile, apiKey, onClose, onSave }: EditProfileModalProps) => {
     const [formData, setFormData] = useState({
         nombre: profile.nombre,
         bio: profile.bio
     });
 
-    const [avatarFile, setAvatarFile] = useState(null);
-    const [bannerFile, setBannerFile] = useState(null);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState(profile.avatar || '');
     const [bannerPreview, setBannerPreview] = useState(profile.banner || '');
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleChange = (e) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
@@ -22,25 +36,25 @@ const EditProfileModal = ({ profile, apiKey, onClose, onSave }) => {
         }));
     };
 
-    const handleAvatarChange = (e) => {
+    const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             setAvatarFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setAvatarPreview(reader.result);
+                setAvatarPreview(reader.result as string);
             };
             reader.readAsDataURL(file);
         }
     };
 
-    const handleBannerChange = (e) => {
+    const handleBannerChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             setBannerFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setBannerPreview(reader.result);
+                setBannerPreview(reader.result as string);
             };
             reader.readAsDataURL(file);
         }
@@ -104,7 +118,7 @@ const EditProfileModal = ({ profile, apiKey, onClose, onSave }) => {
             onClose();
         } catch (err) {
             console.error('Error complet:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : 'Error desconegut');
         } finally {
             setLoading(false);
         }

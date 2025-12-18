@@ -13,7 +13,13 @@ const EditPostModal = ({ post, apiKey, onClose, onPostUpdated }: EditPostModalPr
     const [content, setContent] = useState(post.content);
     const [url, setUrl] = useState(post.url || '');
     const [image, setImage] = useState<File | null>(null);
-    const [selectedCommunities, setSelectedCommunities] = useState<string[]>(post.communities || []);
+    
+    // Convertim post.communities a string[] extraient els noms
+    const [selectedCommunities, setSelectedCommunities] = useState<string[]>(() => {
+        if (!post.communities) return [];
+        return post.communities.map(c => typeof c === 'string' ? c : c.name);
+    });
+    
     const [availableCommunities, setAvailableCommunities] = useState<Community[]>([]);
     const [loadingCommunities, setLoadingCommunities] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -57,19 +63,21 @@ const EditPostModal = ({ post, apiKey, onClose, onPostUpdated }: EditPostModalPr
         setError(null);
 
         try {
-            const response = await updatePost(apiKey, post.id, {
+            await updatePost(apiKey, post.id, {
                 title,
                 content,
                 url: url || undefined,
                 image: image || undefined,
                 communities: selectedCommunities,
             });
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" style={{ zIndex: 9999 }}></div>
+            
             onPostUpdated();
             onClose();
         } catch (err: any) {
-
             let errorMessage = 'Error actualitzant el post';
+            if (err.message) {
+                errorMessage = err.message;
+            }
             setError(errorMessage);
         } finally {
             setLoading(false);
