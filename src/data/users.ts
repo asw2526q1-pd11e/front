@@ -19,7 +19,7 @@ export const USERS: User[] = [
     id: '2',
     name: 'Aina',
     email: 'aina123@gmail.com',
-    apiKey: '76667764-3b47-43c5-8c2e-bfb2bf0ea21d',
+    apiKey: '539fe465-8835-4f52-9886-59110149098c',
     avatar: '👩‍💼'
   },
   {
@@ -33,7 +33,7 @@ export const USERS: User[] = [
     id: '4',
     name: 'Ada',
     email: 'ada@example.com',
-    apiKey: '73f45683-fb60-4c9d-b907-bb9d116cf604',
+    apiKey: '221df709-fc8a-461d-819c-9868296fdacb',
     avatar: '👩‍🔬'
   },
   {
