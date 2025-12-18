@@ -1,8 +1,12 @@
 // src/services/api.ts
 
-export const API_URL = "/api/blog/api";
-export const COMMUNITIES_API_URL = "/api/communities";
-export const ACCOUNTS_API_URL = "/api/accounts";
+// Utilitza la variable d'entorn o localhost per defecte
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
+
+export const API_URL = `${API_BASE}/api/blog/api`;
+export const COMMUNITIES_API_URL = `${API_BASE}/api/communities`;
+export const ACCOUNTS_API_URL = `${API_BASE}/api/accounts`;
+
 
 // -------------------- TYPES --------------------
 export interface PostCommunity {
