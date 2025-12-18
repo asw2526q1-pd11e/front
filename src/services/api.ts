@@ -336,7 +336,14 @@ export async function fetchUserProfile(apiKey: string): Promise<UserProfile> {
     headers: getAuthHeaders(apiKey)
   });
   if (!res.ok) throw new Error("Failed to fetch user profile");
-  return res.json();
+  
+  const text = await res.text();
+
+  if (!text) {
+    throw new Error('Empty profile received from the server');
+  }
+
+  return JSON.parse(text);
 }
 
 // -------------------- UPDATE USER PROFILE --------------------
