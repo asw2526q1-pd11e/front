@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { upvoteComment, downvoteComment, deleteComment, toggleSaveComment } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useSavedComments } from '../context/SavedCommentContext';
+import { useCommentVotes } from '../context/CommentVoteContext';
 import EditCommentModal from './EditCommentModal';
 
 interface Comment {
@@ -42,17 +43,33 @@ const CommentCard: React.FC<Props> = ({
     const { user } = useAuth();
     const navigate = useNavigate();
     const { isCommentSaved, toggleCommentSaved } = useSavedComments();
+    const { getCommentVote, setCommentVote } = useCommentVotes();
     const [localComment, setLocalComment] = useState(comment);
     const [votes, setVotes] = useState(comment.votes);
-    const [userVote, setUserVote] = useState<'up' | 'down' | null>(
-        comment.user_vote === 1 ? 'up' : comment.user_vote === -1 ? 'down' : null
-    );
+    // Usar el contexto para obtener el voto del usuario
+    const userVote = getCommentVote(comment.id);
     const [isVoting, setIsVoting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [editingComment, setEditingComment] = useState<Comment | null>(null);
 
     // Usar l'estat global en lloc de l'estat local
     const isSaved = isCommentSaved(comment.id);
+
+    // Inicializar el voto del comentario desde el backend si no existe en el contexto
+    useEffect(() => {
+        // Solo inicializar si el contexto no tiene un voto para este comentario
+        if (getCommentVote(comment.id) === null && comment.user_vote !== undefined && comment.user_vote !== 0) {
+            const initialVote = comment.user_vote === 1 ? 'up' : comment.user_vote === -1 ? 'down' : null;
+            if (initialVote) {
+                setCommentVote(comment.id, initialVote);
+            }
+        }
+    }, [comment.id, comment.user_vote, getCommentVote, setCommentVote]);
+
+    // Debug para ver si los votos se están guardando correctamente
+    useEffect(() => {
+        console.log(`CommentCard ${comment.id}: userVote from context:`, getCommentVote(comment.id), 'user_vote from API:', comment.user_vote);
+    }, [comment.id, getCommentVote, comment.user_vote]);
 
     // Actualitzar l'estat local quan canvia el prop
     useEffect(() => {
@@ -90,7 +107,9 @@ const CommentCard: React.FC<Props> = ({
         try {
             const result = await upvoteComment(user.apiKey, comment.id);
             setVotes(result.votes);
-            setUserVote(userVote === 'up' ? null : 'up');
+            // Actualizar el voto en el contexto
+            const newVote = userVote === 'up' ? null : 'up';
+            setCommentVote(comment.id, newVote);
         } catch (error) {
             console.error('Error fent upvote:', error);
         } finally {
@@ -108,7 +127,9 @@ const CommentCard: React.FC<Props> = ({
         try {
             const result = await downvoteComment(user.apiKey, comment.id);
             setVotes(result.votes);
-            setUserVote(userVote === 'down' ? null : 'down');
+            // Actualizar el voto en el contexto
+            const newVote = userVote === 'down' ? null : 'down';
+            setCommentVote(comment.id, newVote);
         } catch (error) {
             console.error('Error fent downvote:', error);
         } finally {

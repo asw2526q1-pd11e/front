@@ -6,6 +6,7 @@ import { AuthProvider } from "./components/AuthProvider";
 import { SavedPostsProvider } from "./context/SavedPostContext";
 import { SavedCommentProvider } from "./context/SavedCommentContext";
 import { PostVoteProvider } from "./context/PostVoteContext";
+import { CommentVoteProvider } from "./context/CommentVoteContext";
 import { useAuth } from "./hooks/useAuth";
 import Layout from "./components/Layout";
 import PostsPage from "./pages/PostsPage";
@@ -37,7 +38,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 <SavedPostsProvider>
                     <SavedCommentProvider>
                         <PostVoteProvider>
-                        <Routes>
+                            <CommentVoteProvider>
+                                <Routes>
                             {/* Ruta de login (sense protecció) */}
                             <Route path="/login" element={<LoginPage />} />
 
@@ -61,7 +63,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
                             {/* Redirigir qualsevol altra ruta a login */}
                             <Route path="*" element={<Navigate to="/login" replace />} />
-                        </Routes>
+                                </Routes>
+                            </CommentVoteProvider>
                         </PostVoteProvider>
                     </SavedCommentProvider>
                 </SavedPostsProvider>
