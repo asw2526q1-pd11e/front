@@ -7,6 +7,7 @@ import type { UserProfile } from '../services/api';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Para forzar re-render
 
   // Función para cargar el perfil del backend
   const loadUserProfile = async (apiKey: string) => {
@@ -53,7 +54,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Función pública para refrescar el perfil
   const refreshProfile = async () => {
     if (user?.apiKey) {
+      console.log('🔄 Refrescant perfil...');
       const profile = await loadUserProfile(user.apiKey);
+      // Incrementar refreshKey para forzar re-render de todos los componentes que usen user
+      setRefreshKey(prev => prev + 1);
+      console.log('✅ Perfil refrescat, refreshKey:', refreshKey + 1);
       return profile;
     }
     return null;
@@ -62,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user;
 
   // Combinar user local con userProfile del backend
+  // Incluir refreshKey en el objeto para forzar actualizaciones
   const enrichedUser = user ? {
     ...user,
     // Mantener el avatar original (emoji)
@@ -75,6 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user_id: userProfile?.user_id,
     // Agregar la función de refresh al objeto user
     refreshProfile,
+    // Key para forzar actualizaciones
+    _refreshKey: refreshKey,
   } : null;
 
   return (
