@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { UserProfile } from '../services/api';
-import { fetchUserProfile } from '../services/api';
+import { updateUserProfile } from '../services/api';
 
 
 interface EditProfileModalProps {
@@ -72,19 +72,6 @@ const EditProfileModal = ({ profile, apiKey, onClose, onSave }: EditProfileModal
         setError(null);
 
         try {
-            const formDataToSend = new FormData();
-
-            formDataToSend.append('nombre', formData.nombre);
-            formDataToSend.append('bio', formData.bio);
-
-            if (avatarFile) {
-                formDataToSend.append('avatar', avatarFile);
-            }
-
-            if (bannerFile) {
-                formDataToSend.append('banner', bannerFile);
-            }
-
             console.log('Enviant dades:', {
                 nombre: formData.nombre,
                 bio: formData.bio,
@@ -93,28 +80,18 @@ const EditProfileModal = ({ profile, apiKey, onClose, onSave }: EditProfileModal
                 apiKey: apiKey ? '✓' : '✗'
             });
 
-            const response = await fetch('/api/accounts/users/me/', {
-                method: 'PUT',
-                headers: {
-                    'X-API-Key': apiKey
-                },
-                body: formDataToSend
+            // Utilitzar la funció d'api.ts
+            const updatedProfile = await updateUserProfile(apiKey, {
+                nombre: formData.nombre,
+                bio: formData.bio,
+                avatar: avatarFile,
+                banner: bannerFile,
             });
 
-            console.log('Response status:', response.status);
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                console.error('Error response:', errorData);
-                throw new Error(errorData?.detail || errorData?.error || `Error ${response.status}: ${response.statusText}`);
-            }
-
-            const freshProfile = await fetchUserProfile(apiKey);
-
-            console.log('Perfil actualitzat:', freshProfile);
-            onSave(freshProfile);
+            console.log('Perfil actualitzat:', updatedProfile);
+            
+            onSave(updatedProfile);
             onClose();
-
 
         } catch (err) {
             console.error('Error complet:', err);

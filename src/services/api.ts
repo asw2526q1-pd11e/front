@@ -382,12 +382,13 @@ export async function updateUserProfile(
     body: formData
   });
 
-  if (!res.ok) throw new Error("Failed to update user profile");
-  try {
-    return await res.json();
-  } catch {
-    return fetchUserProfile(apiKey);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorData?.detail || errorData?.error || `Error ${res.status}: No s'ha pogut actualitzar el perfil`);
   }
+  
+  // Retornar directament la resposta del PUT
+  return await res.json();
 }
 
 // -------------------- USER POSTS --------------------
