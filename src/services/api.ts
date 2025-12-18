@@ -1,12 +1,11 @@
 // src/services/api.ts
 
-// Utilitza la variable d'entorn o localhost per defecte
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000';
+// En producció es fa servir VITE_API_BASE, en desenvolupament usa paths relatius (proxy de Vite)
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export const API_URL = `${API_BASE}/api/blog/api`;
 export const COMMUNITIES_API_URL = `${API_BASE}/api/communities`;
 export const ACCOUNTS_API_URL = `${API_BASE}/api/accounts`;
-
 
 // -------------------- TYPES --------------------
 export interface PostCommunity {
