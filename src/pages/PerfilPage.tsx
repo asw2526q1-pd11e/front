@@ -52,8 +52,10 @@ const PerfilPage = () => {
 
     if (user?.refreshProfile) {
       await user.refreshProfile();
-      await new Promise(resolve => setTimeout(resolve, 300));
     }
+
+    // Forzar reload en producción
+    window.location.reload();
   };
 
   const loadSubscribedCommunities = async () => {
