@@ -80,7 +80,7 @@ export default function PostsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-24">
+        <div className="min-h-screen bg-roseTheme-soft pb-24">
             {/* Botó flotant per crear post */}
             {user && (
                 <button
@@ -166,18 +166,22 @@ export default function PostsPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="border-2 border-roseTheme-light rounded-xl overflow-hidden divide-y divide-roseTheme-light shadow-lg bg-white">
+                    <div className="space-y-4">
                         {posts.map(post => (
-                            <PostCard
+                            <div 
                                 key={post.id}
-                                post={post}
-                                onPostDeleted={(postId) => {
-                                    setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
-                                }}
-                                onPostEdited={(post) => {
-                                    setEditingPost(post);
-                                }}
-                            />
+                                className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 border border-roseTheme-light/50"
+                            >
+                                <PostCard
+                                    post={post}
+                                    onPostDeleted={(postId) => {
+                                        setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
+                                    }}
+                                    onPostEdited={(post) => {
+                                        setEditingPost(post);
+                                    }}
+                                />
+                            </div>
                         ))}
                     </div>
                 )}

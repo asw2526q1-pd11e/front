@@ -298,7 +298,7 @@ export default function PostDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-8">
+        <div className="min-h-screen bg-roseTheme-soft pb-8">
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="mb-6">
                     <Link to="/" className="text-roseTheme-dark hover:underline flex items-center gap-2">
