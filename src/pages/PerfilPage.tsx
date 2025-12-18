@@ -50,12 +50,8 @@ const PerfilPage = () => {
   const handleProfileUpdate = async (updatedProfile: UserProfile) => {
     setProfile(updatedProfile);
 
-    if (user?.refreshProfile) {
-      await user.refreshProfile();
-    }
-
-    // Forzar reload en producción
-    window.location.reload();
+    // Disparar evento para que el Navbar se actualice
+    window.dispatchEvent(new Event('profileUpdated'));
   };
 
   const loadSubscribedCommunities = async () => {
