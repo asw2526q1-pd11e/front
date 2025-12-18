@@ -1,17 +1,12 @@
-import { useState, ChangeEvent, FormEvent } from 'react';
-
-interface Profile {
-    nombre: string;
-    bio: string;
-    avatar?: string;
-    banner?: string;
-}
+import { useState } from 'react';
+import type { ChangeEvent } from 'react';
+import type { UserProfile } from '../services/api';
 
 interface EditProfileModalProps {
-    profile: Profile;
+    profile: UserProfile;
     apiKey: string;
     onClose: () => void;
-    onSave: (profile: Profile) => void;
+    onSave: (profile: UserProfile) => void;
 }
 
 const EditProfileModal = ({ profile, apiKey, onClose, onSave }: EditProfileModalProps) => {
@@ -280,9 +275,9 @@ const EditProfileModal = ({ profile, apiKey, onClose, onSave }: EditProfileModal
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Guardant...
-                </span>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Guardant...
+                                </span>
                             ) : (
                                 '💾 Guardar canvis'
                             )}
