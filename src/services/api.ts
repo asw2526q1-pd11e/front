@@ -1,7 +1,5 @@
 // src/services/api.ts
 
-// src/services/api.ts
-
 // En producció es fa servir VITE_API_BASE, en desenvolupament usa paths relatius (proxy de Vite)
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
