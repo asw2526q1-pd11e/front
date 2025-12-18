@@ -13,6 +13,7 @@ import {
 } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
+import { usePostVotes } from '../context/PostVoteContext';
 import EditPostModal from '../components/EditPostModal';
 import CreateCommentModal from '../components/CreateCommentModal';
 import CommentCard from '../components/CommentCard';
@@ -62,6 +63,7 @@ export default function PostDetailPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { isPostSaved, togglePostSaved } = useSavedPosts();
+    const { getPostVote, setPostVote } = usePostVotes();
 
     const [post, setPost] = useState<Post | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -72,7 +74,8 @@ export default function PostDetailPage() {
     const [commentOrder, setCommentOrder] = useState<CommentOrderType>('new');
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [replyingTo, setReplyingTo] = useState<{ id: number; author: string } | null>(null);
-    const [postUserVote, setPostUserVote] = useState<'up' | 'down' | null>(null);
+    // Obtener el voto del post desde el contexto
+    const postUserVote = post ? getPostVote(post.id) : null;
     const [isVoting, setIsVoting] = useState(false);
     const [editingComment, setEditingComment] = useState<Comment | null>(null);
 
@@ -119,7 +122,9 @@ export default function PostDetailPage() {
         try {
             const result = await upvotePost(user.apiKey, post.id);
             setPost(prev => prev ? { ...prev, votes: result.votes } : null);
-            setPostUserVote(postUserVote === 'up' ? null : 'up');
+            // Actualizar el voto en el contexto
+            const newVote = postUserVote === 'up' ? null : 'up';
+            setPostVote(post.id, newVote);
         } catch (err) {
             console.error('Error fent upvote:', err);
         } finally {
@@ -133,7 +138,9 @@ export default function PostDetailPage() {
         try {
             const result = await downvotePost(user.apiKey, post.id);
             setPost(prev => prev ? { ...prev, votes: result.votes } : null);
-            setPostUserVote(postUserVote === 'down' ? null : 'down');
+            // Actualizar el voto en el contexto
+            const newVote = postUserVote === 'down' ? null : 'down';
+            setPostVote(post.id, newVote);
         } catch (err) {
             console.error('Error fent downvote:', err);
         } finally {

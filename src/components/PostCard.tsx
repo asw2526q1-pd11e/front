@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { upvotePost, downvotePost, toggleSavePost, deletePost, getCommunityIdByName } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
+import { usePostVotes } from '../context/PostVoteContext';
 import type { Post, PostCommunity } from '../services/api';
 
 interface Props {
@@ -16,8 +17,9 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isPostSaved, togglePostSaved } = useSavedPosts();
+  const { getPostVote, setPostVote } = usePostVotes();
   const [votes, setVotes] = useState(post.votes);
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
+  const userVote = getPostVote(post.id);
   const [isVoting, setIsVoting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -54,7 +56,9 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
     try {
       const result = await upvotePost(user.apiKey, post.id);
       setVotes(result.votes);
-      setUserVote(userVote === 'up' ? null : 'up');
+      // Actualizar el voto en el contexto
+      const newVote = userVote === 'up' ? null : 'up';
+      setPostVote(post.id, newVote);
     } catch (error) {
       console.error('Error voting:', error);
     } finally {
@@ -72,7 +76,9 @@ const PostCard: React.FC<Props> = ({ post, onPostDeleted, onPostEdited }) => {
     try {
       const result = await downvotePost(user.apiKey, post.id);
       setVotes(result.votes);
-      setUserVote(userVote === 'down' ? null : 'down');
+      // Actualizar el voto en el contexto
+      const newVote = userVote === 'down' ? null : 'down';
+      setPostVote(post.id, newVote);
     } catch (error) {
       console.error('Error voting:', error);
     } finally {
