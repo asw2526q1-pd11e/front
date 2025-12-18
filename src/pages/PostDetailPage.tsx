@@ -6,8 +6,10 @@ import {
     toggleSavePost as apiToggleSavePost, 
     upvotePost, 
     downvotePost, 
-    deletePost, 
-    type Post as ApiPost 
+    deletePost,
+    getCommunityIdByName, 
+    type Post as ApiPost,
+    type PostCommunity
 } from "../services/api";
 import { useAuth } from '../hooks/useAuth';
 import { useSavedPosts } from '../context/SavedPostContext';
@@ -26,7 +28,7 @@ interface Post {
     votes: number;
     url: string;
     image?: string | null;
-    communities?: string[];
+    communities?: (string | PostCommunity)[];
     is_saved?: boolean;
 }
 
@@ -208,6 +210,40 @@ export default function PostDetailPage() {
         }
     };
 
+    const handleCommunityClick = async (e: React.MouseEvent, community: string | PostCommunity) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Si es un objeto con ID, navegar directamente
+        if (typeof community === 'object' && community.id) {
+            navigate(`/comunitats/${community.id}`);
+            return;
+        }
+
+        // Si es un string o un objeto sin ID, buscar el ID
+        const communityName = typeof community === 'string' ? community : community.name;
+
+        if (!user?.apiKey) {
+            // Si no hay usuario autenticado, no podemos buscar el ID
+            console.warn('Usuario no autenticado, no se puede buscar ID de comunidad');
+            return;
+        }
+
+        try {
+            // Buscar el ID de la comunidad por nombre
+            const communityId = await getCommunityIdByName(user.apiKey, communityName);
+
+            if (communityId) {
+                navigate(`/comunitats/${communityId}`);
+            } else {
+                console.warn(`No se encontró la comunidad: ${communityName}`);
+                // Opcionalmente, mostrar un mensaje al usuario
+            }
+        } catch (error) {
+            console.error('Error navegando a la comunidad:', error);
+        }
+    };
+
     const isOwner = user && post?.author &&
         (user as any).username?.toLowerCase() === post.author.toLowerCase();
 
@@ -300,11 +336,26 @@ export default function PostDetailPage() {
 
                         {post.communities && post.communities.length > 0 && (
                             <div className="flex flex-wrap gap-2">
-                                {post.communities.map((community, idx) => (
-                                    <span key={idx} className="bg-gradient-to-r from-roseTheme-light to-rose-100 text-roseTheme-dark px-3 py-1 rounded-full text-sm font-semibold">
-                                        c/{community}
-                                    </span>
-                                ))}
+                                {post.communities.map((community, idx) => {
+                                    const isObject = typeof community === 'object';
+                                    const communityId = isObject ? community.id : 0;
+                                    const communityName = isObject ? community.name : community;
+                                    const hasId = isObject && communityId > 0;
+
+                                    return (
+                                        <button
+                                            key={hasId ? communityId : `comm-${idx}`}
+                                            onClick={(e) => handleCommunityClick(e, community)}
+                                            className="inline-flex items-center gap-1 text-sm bg-gradient-to-r from-roseTheme-light to-rose-100 text-roseTheme-dark px-3 py-1 rounded-full font-semibold shadow-sm hover:from-rose-200 hover:to-rose-300 hover:scale-105 cursor-pointer transition-all duration-200"
+                                            title={`Veure c/${communityName}`}
+                                        >
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                                            </svg>
+                                            c/{communityName}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
