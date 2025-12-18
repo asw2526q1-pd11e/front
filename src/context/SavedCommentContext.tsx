@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchSavedComments } from '../services/api';
 
@@ -15,16 +16,11 @@ export const SavedCommentProvider: React.FC<{ children: ReactNode }> = ({ childr
     const { user } = useAuth();
     const [savedCommentIds, setSavedCommentIds] = useState<Set<number>>(new Set());
 
-    useEffect(() => {
-        if (user?.apiKey) {
-            refreshSavedComments();
-        } else {
+    const refreshSavedComments = useCallback(async () => {
+        if (!user?.apiKey) {
             setSavedCommentIds(new Set());
+            return;
         }
-    }, [user?.apiKey]);
-
-    const refreshSavedComments = async () => {
-        if (!user?.apiKey) return;
 
         try {
             const comments = await fetchSavedComments(user.apiKey);
@@ -37,13 +33,17 @@ export const SavedCommentProvider: React.FC<{ children: ReactNode }> = ({ childr
             console.error('Error carregant comentaris guardats:', error);
             setSavedCommentIds(new Set());
         }
-    };
+    }, [user?.apiKey]);
 
-    const isCommentSaved = (commentId: number): boolean => {
+    useEffect(() => {
+        refreshSavedComments();
+    }, [refreshSavedComments]);
+
+    const isCommentSaved = useCallback((commentId: number): boolean => {
         return savedCommentIds.has(commentId);
-    };
+    }, [savedCommentIds]);
 
-    const toggleCommentSaved = (commentId: number, saved: boolean) => {
+    const toggleCommentSaved = useCallback((commentId: number, saved: boolean) => {
         setSavedCommentIds(prev => {
             const newSet = new Set(prev);
             if (saved) {
@@ -56,7 +56,7 @@ export const SavedCommentProvider: React.FC<{ children: ReactNode }> = ({ childr
             console.log('📊 Total comentaris guardats:', newSet.size);
             return newSet;
         });
-    };
+    }, []);
 
     return (
         <SavedCommentContext.Provider
