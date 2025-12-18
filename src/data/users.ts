@@ -26,14 +26,14 @@ export const USERS: User[] = [
     id: '3',
     name: 'camila_valeria',
     email: 'cami@example.com',
-    apiKey: '606a0bd8-b871-45a2-aa95-daea3b1d92da', // Substitueix amb l'API key real
+    apiKey: '606a0bd8-b871-45a2-aa95-daea3b1d92da',
     avatar: '👨‍🎨'
   },
   {
     id: '4',
     name: 'Ada',
     email: 'ada@example.com',
-    apiKey: '9116c5c7-c9d6-4aa9-95b2-b2d274f2ac37', // Substitueix amb l'API key real
+    apiKey: '73f45683-fb60-4c9d-b907-bb9d116cf604',
     avatar: '👩‍🔬'
   }
 ];
