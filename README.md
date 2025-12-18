@@ -1,7 +1,4 @@
-# DailyDev - Frontend
-
-Plataforma social per a desenvolupadors construïda amb React + TypeScript + Vite. Interfície estil Twitter/Reddit amb gestió de posts, comunitats i perfils d'usuari.
-
+### RENDER: https://front-hqro.onrender.com/
 ---
 
 ## Instal·lació i Execució
