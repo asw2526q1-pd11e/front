@@ -34,18 +34,19 @@ const PerfilPage = () => {
   const [subscribedCommunities, setSubscribedCommunities] = useState<Community[]>([]);
 
   useEffect(() => {
-    if (user?.apiKey) {
-      fetchUserProfile(user.apiKey)
-          .then(data => {
-            setProfile(data);
-            setError(null);
-          })
-          .catch(err => {
-            setError(err.message || "No s'ha pogut carregar el perfil");
-          })
-          .finally(() => setLoading(false));
+    if (!user?.apiKey) return;
+
+    fetchUserProfile(user.apiKey)
+      .then(data => {
+        setProfile(data);
+        setError(null);
+      })
+      .catch(err => {
+        setError(err.message || "No s'ha pogut carregar el perfil");
+      })
+      .finally(() => setLoading(false));
     }
-  }, [user]);
+  , [user?.apiKey]);
 
   const handleProfileUpdate = (updatedProfile: UserProfile) => {
     setProfile(updatedProfile);
