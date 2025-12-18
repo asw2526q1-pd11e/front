@@ -12,7 +12,7 @@ const UserProfilePage = () => {
     const navigate = useNavigate();
     
     // Comprovar si l'usuari està veient el seu propi perfil
-    const isOwnProfile = user?.id === parseInt(userId || '0');
+    const isOwnProfile = user?.id ? parseInt(String(user.id)) === parseInt(userId || '0') : false;
     
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [userPosts, setUserPosts] = useState<Post[]>([]);
