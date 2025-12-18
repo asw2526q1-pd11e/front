@@ -19,7 +19,7 @@ export const USERS: User[] = [
     id: '2',
     name: 'Aina',
     email: 'aina123@gmail.com',
-    apiKey: 'b36eb380-fc64-437d-a8b0-a3a8a5be02b2',
+    apiKey: '76667764-3b47-43c5-8c2e-bfb2bf0ea21d',
     avatar: '👩‍💼'
   },
   {
@@ -35,5 +35,12 @@ export const USERS: User[] = [
     email: 'ada@example.com',
     apiKey: '73f45683-fb60-4c9d-b907-bb9d116cf604',
     avatar: '👩‍🔬'
+  },
+  {
+    id: '5',
+    name: 'ToniDos',
+    email: 'tonidos@example.com',
+    apiKey: '76667764-3b47-43c5-8c2e-bfb2bf0ea21d',
+    avatar: '👨‍🚀'
   }
 ];

@@ -10,6 +10,10 @@ const UserProfilePage = () => {
     const { userId } = useParams<{ userId: string }>();
     const { user } = useAuth();
     const navigate = useNavigate();
+    
+    // Comprovar si l'usuari està veient el seu propi perfil
+    const isOwnProfile = user?.id === parseInt(userId || '0');
+    
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [userPosts, setUserPosts] = useState<Post[]>([]);
     const [userComments, setUserComments] = useState<Comment[]>([]);
@@ -352,7 +356,7 @@ const UserProfilePage = () => {
                         </div>
                     </div>
 
-                    {/* Accions */}
+                    {/* Accions - NOMÉS ES MOSTREN GUARDATS SI ÉS EL TEU PERFIL */}
                     <div className="flex gap-3 flex-wrap">
                         <button
                             onClick={handleShowMyPosts}
@@ -374,26 +378,32 @@ const UserProfilePage = () => {
                         >
                             💬 Comentaris
                         </button>
-                        <button
-                            onClick={handleShowSavedPosts}
-                            className={`flex-1 font-semibold py-3 rounded-xl transition border ${
-                                showSavedPosts
-                                    ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
-                                    : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
-                            }`}
-                        >
-                            ⭐ Posts guardats
-                        </button>
-                        <button
-                            onClick={handleShowSavedComments}
-                            className={`flex-1 font-semibold py-3 rounded-xl transition border ${
-                                showSavedComments
-                                    ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
-                                    : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
-                            }`}
-                        >
-                            💾 Comentaris guardats
-                        </button>
+                        
+                        {/* NOMÉS MOSTRAR AQUESTES PESTANYES SI ÉS EL TEU PERFIL */}
+                        {isOwnProfile && (
+                            <>
+                                <button
+                                    onClick={handleShowSavedPosts}
+                                    className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                                        showSavedPosts
+                                            ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
+                                            : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                                    }`}
+                                >
+                                    ⭐ Posts guardats
+                                </button>
+                                <button
+                                    onClick={handleShowSavedComments}
+                                    className={`flex-1 font-semibold py-3 rounded-xl transition border ${
+                                        showSavedComments
+                                            ? 'selected bg-gradient-to-br from-rose-500 via-pink-500 to-rose-600 text-white border-rose-500'
+                                            : 'bg-transparent text-gray-700 border-transparent hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+                                    }`}
+                                >
+                                    💾 Comentaris guardats
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -484,8 +494,8 @@ const UserProfilePage = () => {
                 </div>
             )}
 
-            {/* Posts Guardats */}
-            {showSavedPosts && (
+            {/* Posts Guardats - NOMÉS SI ÉS EL TEU PERFIL */}
+            {isOwnProfile && showSavedPosts && (
                 <div className="mt-6">
                     <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light overflow-hidden">
                         <div className="p-6 border-b border-roseTheme-light">
@@ -507,7 +517,7 @@ const UserProfilePage = () => {
                         ) : savedPosts.length === 0 ? (
                             <div className="text-center py-12">
                                 <div className="text-6xl mb-4">⭐</div>
-                                <p className="text-roseTheme-dark/60 text-lg mb-2">Aquest usuari no té posts guardats</p>
+                                <p className="text-roseTheme-dark/60 text-lg mb-2">No tens posts guardats</p>
                                 <p className="text-roseTheme-dark/40 text-sm">Els posts guardats apareixeran aquí</p>
                             </div>
                         ) : (
@@ -527,8 +537,8 @@ const UserProfilePage = () => {
                 </div>
             )}
 
-            {/* Comentaris Guardats */}
-            {showSavedComments && (
+            {/* Comentaris Guardats - NOMÉS SI ÉS EL TEU PERFIL */}
+            {isOwnProfile && showSavedComments && (
                 <div className="mt-6">
                     <div className="bg-white rounded-2xl shadow-lg border border-roseTheme-light overflow-hidden">
                         <div className="p-6 border-b border-roseTheme-light">
@@ -550,7 +560,7 @@ const UserProfilePage = () => {
                         ) : savedComments.length === 0 ? (
                             <div className="text-center py-12">
                                 <div className="text-6xl mb-4">💾</div>
-                                <p className="text-roseTheme-dark/60 text-lg mb-2">Aquest usuari no té comentaris guardats</p>
+                                <p className="text-roseTheme-dark/60 text-lg mb-2">No tens comentaris guardats</p>
                                 <p className="text-roseTheme-dark/40 text-sm">Els comentaris guardats apareixeran aquí</p>
                             </div>
                         ) : (
