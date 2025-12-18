@@ -3,7 +3,16 @@ export interface User {
   name: string;
   email: string;
   apiKey: string;
-  avatar?: string;
+  avatar?: string; // Emoji o inicial
+  // Campos adicionales del backend
+  username?: string;
+  nombre?: string;
+  bio?: string;
+  avatarUrl?: string | null; // URL de S3 del avatar real
+  banner?: string | null;
+  user_id?: number;
+  // Función para refrescar el perfil
+  refreshProfile?: () => Promise<any>;
 }
 
 // Usuaris amb API keys reals del teu backend Django
