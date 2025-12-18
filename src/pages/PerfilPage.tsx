@@ -48,17 +48,14 @@ const PerfilPage = () => {
   }, [user]);
 
   const handleProfileUpdate = async (updatedProfile: UserProfile) => {
-    // Actualizar el estado local
     setProfile(updatedProfile);
 
-    // Refrescar el perfil en el AuthProvider para que se actualice en el Navbar
     if (user?.refreshProfile) {
-      console.log('🔄 Refrescant perfil al AuthProvider...');
       await user.refreshProfile();
-      // Pequeño delay para asegurar que React re-renderiza
-      await new Promise(resolve => setTimeout(resolve, 100));
-      console.log('✅ Perfil actualitzat al AuthProvider');
     }
+
+    // Forzar reload en producción
+    window.location.reload();
   };
 
   const loadSubscribedCommunities = async () => {
